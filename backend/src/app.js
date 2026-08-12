@@ -4,6 +4,8 @@ const authRoutes = require('./routes/authRoutes');
 
 const bookRoutes = require('./routes/bookRoutes');
 
+const importRoutes = require('./routes/bookImportRoutes');
+
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
@@ -25,7 +27,9 @@ app.use(express.urlencoded({ extended: true }));
     
 app.use("/auth", authRoutes);
 
-app.use("/api/books", bookRoutes)
+app.use("/api/books", bookRoutes);
+
+app.use("/api/books/import", importRoutes);
 
 
 

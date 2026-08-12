@@ -117,12 +117,12 @@ const deleteById = (id, callback) => {
     db.query("DELETE FROM users WHERE id = ?", [id], callback);
 };
 
-const updateRefreshToken = (userId, token, callback) => {
-    db.query("UPDATE users SET refresh_token_id = ? WHERE id = ?", [token, userId], callback);
+const updateRefreshTokenId = (userId, tokenId, callback) => {
+    db.query("UPDATE users SET refresh_token_id = ? WHERE id = ?", [tokenId, userId], callback);
 };
 
-const findByRefreshToken = (token, callback) => {
-    db.query("SELECT * FROM users WHERE refresh_token_id = ? LIMIT 1", [token], callback);
+const findByRefreshTokenId = (tokenId, callback) => {
+    db.query("SELECT * FROM users WHERE refresh_token_id = ? LIMIT 1", [tokenId], callback);
 };
 
 module.exports = {
@@ -133,6 +133,6 @@ module.exports = {
     findAll,
     countAdmins,
     deleteById,
-    updateRefreshToken,
-    findByRefreshToken
+    updateRefreshTokenId,
+    findByRefreshTokenId
 };

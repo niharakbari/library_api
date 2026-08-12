@@ -1,11 +1,6 @@
 const db = require("../config/database");
 
-const saveRefreshToken = (
-    refreshToken,
-    expiresAt,
-    callback
-) => {
-
+const saveRefreshToken = (refreshToken, expiresAt, callback) => {
     db.query(
         `
         INSERT INTO refresh_tokens
@@ -15,13 +10,9 @@ const saveRefreshToken = (
         )
         VALUES (?, ?)
         `,
-        [
-            refreshToken,
-            expiresAt
-        ],
+        [refreshToken, expiresAt],
         callback
     );
-
 };
 
 const findRefreshToken = (refreshToken, callback) => {

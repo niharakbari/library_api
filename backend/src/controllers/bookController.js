@@ -1,6 +1,4 @@
-const { searchBooksFromOpenLibrary, getBookWorkFromOpenLibrary, getBookEditionsFromOpenLibrary } = require("../services/bookService");
-const { getEdition } = require("../services/openLibrary/openLibraryEditions");
-const {getWork} = require('../services/openLibrary/openLibraryWorks');
+const bookService = require("../services/bookService");
 
 const searchBooks = async (req, res, next) => {
     try {
@@ -30,12 +28,12 @@ const searchBooks = async (req, res, next) => {
             });
         }
 
-        const data = await searchBooksFromOpenLibrary({
+        const data = await bookService.getBooksFromOpenLibrary(
             title,
             author,
             limit,
             offset,
-        });
+        );
 
         return res.status(200).json({
             success: true,
@@ -63,7 +61,7 @@ const getBookWork = async (req, res, next) => {
             });
         }
 
-        const data = await getWork(workKey);
+        const data = await bookService.getBookWorkFromOpenLibrary(workKey);
 
         return res.status(200).json({
             success: true,
@@ -103,11 +101,8 @@ const getBookEditions = async (req, res, next) => {
             });
         }
 
-        const data = await getBookEditionsFromOpenLibrary({
-            workKey,
-            limit,
-            offset,
-        });
+        const data = await bookService.getBookEditionsFromOpenLibrary(workKey, limit, offset);
+
 
         return res.status(200).json({
             success: true,

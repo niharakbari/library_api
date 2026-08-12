@@ -1,39 +1,19 @@
-const { getEdition } = require("./openLibrary/openLibraryEditions");
-const { searchBooks } = require("./openLibrary/openLibrarySearch");
-const { getWork } = require("./openLibrary/openLibraryWorks");
+const openLibraryService = require("./openLibrary/openLibraryService");
 
-const searchBooksFromOpenLibrary = async ({
-    title,
-    author,
-    limit,
-    offset,
-}) => {
-    return await searchBooks({
-        title,
-        author,
-        limit,
-        offset,
-    });
+const getBooksFromOpenLibrary = async (title, author, limit, offset) => {
+    return await openLibraryService.searchBooks(title, author, limit, offset);
 };
 
-const getWorkFromOpenLibrary = async (workKey) => {
-    return getWork(workKey);
+const getBookWorkFromOpenLibrary = async (workKey) => {
+    return await openLibraryService.getWork(workKey);
 }
 
-const getBookEditionsFromOpenLibrary = async ({
-    workKey,
-    limit,
-    offset,
-}) => {
-    return await getWorkEditions({
-        workKey,
-        limit,
-        offset,
-    });
+const getBookEditionsFromOpenLibrary = async (workKey, limit, offset) => {
+    return await openLibraryService.getWorkEditions(workKey, limit, offset);
 };
 
 module.exports = {
-    searchBooksFromOpenLibrary,
-    getWorkFromOpenLibrary,
+    getBooksFromOpenLibrary,
+    getBookWorkFromOpenLibrary,
     getBookEditionsFromOpenLibrary
 };
