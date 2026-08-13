@@ -12,6 +12,8 @@ const searchBooks = async (title, author , limit=10, offset = 0) => {
 
 const getWork = async (workKey) => {
     const cleanWorkKey = workKey.replace(/^\/?works\//, '');
+    console.log("GET WORK - original:", JSON.stringify(workKey));
+    console.log("GET WORK - cleaned:", JSON.stringify(cleanWorkKey));
     return openLibraryClient.get(`/works/${cleanWorkKey}.json`);
 };
 
@@ -23,9 +25,15 @@ const getWorkEditions = async (workKey, limit = 50, offset = 0 ) => {
     });
 };
 
+const getAuthor = async (authorKey) => {
+    const cleanAuthorKey = authorKey.replace(/^\/?authors\//, '');
+    return openLibraryClient.get(`/authors/${cleanAuthorKey}.json`)
+}
+
 
 module.exports = {
     searchBooks,
     getWork,
     getWorkEditions,
+    getAuthor
 };

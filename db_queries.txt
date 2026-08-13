@@ -345,3 +345,11 @@ CREATE TABLE book_reviews (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS edition_isbns;
+DROP TABLE IF EXISTS edition_languages;
+DROP TABLE IF EXISTS editions;
+
+ALTER TABLE import_jobs
+ADD COLUMN updated_records INT UNSIGNED NOT NULL DEFAULT 0
+AFTER successful_records;
