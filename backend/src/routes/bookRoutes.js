@@ -9,4 +9,6 @@ router.get("/work/:workKey", bookController.getBookWork);
 
 router.get("/work/:workKey/editions", bookController.getBookEditions);
 
+router.get("/catalog", bookController.getLocalCatalog);
+
 module.exports = router;

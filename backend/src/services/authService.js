@@ -9,133 +9,164 @@ const jwt = require("../utils/jwt");
 
 const AppError = require("../utils/AppError");
 
-const logger = require("../config/logger");
 
 
-
-
-//        ----------login user--------------
 
 const loginUser = async (email, password) => {
-    return new Promise((resolve, reject) => {
-        userModel.findByEmail(email, async (err, rows) => {
-            if (err) return reject(err);
-            if (rows.length === 0) return reject(new AppError("Invalid email or password", 401));
+    const rows = await userModel.findByEmail(email);
 
-            const user = rows[0];
+    if (rows.length === 0) {
+        throw new AppError("Invalid email or password", 401);
+    }
 
-            if (!user.password_hash) {
-                return reject(new AppError("Invalid email or password", 401));
-            }
+    const user = rows[0];
 
-            const isPasswordMatch = await bcrypt.compare(password, user.password_hash);
-            if (!isPasswordMatch) return reject(new AppError("Invalid email or password", 401));
+    if (!user.password_hash) {
+        throw new AppError("Invalid email or password", 401);
+    }
 
-            const accessToken = jwt.generateAccessToken(user);
-            const refreshToken = jwt.generateRefreshToken(user);
-            const expiresAt = new Date(Date.now() + config.jwt.refreshTokenExpiryMs);
+    const isPasswordMatch = await bcrypt.compare(
+        password,
+        user.password_hash
+    );
 
-            if (user.refresh_token_id) {
-                refreshTokenModel.updateRefreshToken(user.refresh_token_id, refreshToken, expiresAt, (updateErr) => {
-                    if (updateErr) return reject(updateErr);
-                    resolve({ accessToken, refreshToken, user });
-                });
-            } else {
-                refreshTokenModel.saveRefreshToken(refreshToken, expiresAt, (saveErr, result) => {
-                    if (saveErr) return reject(saveErr);
-                    userModel.updateRefreshTokenId(user.id, result.insertId, (updateUserErr) => {
-                        if (updateUserErr) return reject(updateUserErr);
-                        resolve({ accessToken, refreshToken, user });
-                    });
-                });
-            }
-        });
-    });
+    if (!isPasswordMatch) {
+        throw new AppError("Invalid email or password", 401);
+    }
+
+    const accessToken = jwt.generateAccessToken(user);
+    const refreshToken = jwt.generateRefreshToken(user);
+
+    const expiresAt = new Date(
+        Date.now() + config.jwt.refreshTokenExpiryMs
+    );
+
+    if (user.refresh_token_id) {
+
+        await refreshTokenModel.updateRefreshToken(
+            user.refresh_token_id,
+            refreshToken,
+            expiresAt
+        );
+
+    } else {
+
+        const result = await refreshTokenModel.saveRefreshToken(
+            refreshToken,
+            expiresAt
+        );
+
+        await userModel.updateRefreshTokenId(
+            user.id,
+            result.insertId
+        );
+    }
+
+    return {
+        accessToken,
+        refreshToken,
+        user
+    };
 };
+
+
 
 const refreshToken = async (token) => {
-    return new Promise((resolve, reject) => {
-        if (!token) {
-            return reject(new AppError("Refresh token is required", 400));
-        }
 
-        let decoded;
-        try {
-            decoded = jwt.verifyRefreshToken(token);
-        } catch (err) {
-            return reject(new AppError("Invalid or expired refresh token", 401));
-        }
+    if (!token) {
+        throw new AppError("Refresh token is required", 400);
+    }
 
-        refreshTokenModel.findRefreshToken(token, (err, rows) => {
-            if (err) return reject(err);
-            if (rows.length === 0) {
-                return reject(new AppError("Invalid or expired refresh token", 401));
-            }
+    try {
+        jwt.verifyRefreshToken(token);
+    } catch (err) {
+        throw new AppError(
+            "Invalid or expired refresh token",
+            401
+        );
+    }
 
-            const dbToken = rows[0];
-            const now = new Date();
-            if (new Date(dbToken.expires_at) < now) {
-                refreshTokenModel.deleteRefreshToken(dbToken.id, () => {});
-                return reject(new AppError("Refresh token expired", 401));
-            }
+    const rows = await refreshTokenModel.findRefreshToken(token);
 
-            userModel.findByRefreshTokenId(dbToken.id, (err, userRows) => {
-                if (err) return reject(err);
-                if (userRows.length === 0) {
-                    return reject(new AppError("User not found", 404));
-                }
+    if (rows.length === 0) {
+        throw new AppError(
+            "Invalid or expired refresh token",
+            401
+        );
+    }
 
-                const user = userRows[0];
-                const newAccessToken = jwt.generateAccessToken(user);
-                const newRefreshToken = jwt.generateRefreshToken(user);
-                const expiresAt = new Date(Date.now() + config.jwt.refreshTokenExpiryMs);
+    const dbToken = rows[0];
 
-                refreshTokenModel.updateRefreshToken(dbToken.id, newRefreshToken, expiresAt, (updateErr) => {
-                    if (updateErr) return reject(updateErr);
-                    resolve({
-                        accessToken: newAccessToken,
-                        refreshToken: newRefreshToken,
-                        user
-                    });
-                });
-            });
-        });
-    });
+    const now = new Date();
+
+    if (new Date(dbToken.expires_at) < now) {
+        await refreshTokenModel.deleteRefreshToken(dbToken.id);
+
+        throw new AppError(
+            "Refresh token expired",
+            401
+        );
+    }
+
+    const user = await userModel.findByRefreshTokenId(dbToken.id);
+
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    const newAccessToken = jwt.generateAccessToken(user);
+    const newRefreshToken = jwt.generateRefreshToken(user);
+
+    const expiresAt = new Date(
+        Date.now() + config.jwt.refreshTokenExpiryMs
+    );
+
+    await refreshTokenModel.updateRefreshToken(
+        dbToken.id,
+        newRefreshToken,
+        expiresAt
+    );
+
+    return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        user
+    };
 };
+
 
 const logoutUser = async (token) => {
-    return new Promise((resolve, reject) => {
-        if (!token) {
-            return resolve();
-        }
-        refreshTokenModel.findRefreshToken(token, (err, rows) => {
-            if (err) return reject(err);
-            if (rows.length === 0) return resolve();
-            
-            const dbToken = rows[0];
-            
-            userModel.findByRefreshTokenId(dbToken.id, (userErr, userRows) => {
-                if (userErr) return reject(userErr);
-                if (userRows.length > 0) {
-                    userModel.updateRefreshTokenId(userRows[0].id, null, () => {
-                        refreshTokenModel.deleteRefreshToken(dbToken.id, (delErr) => {
-                            if (delErr) return reject(delErr);
-                            resolve();
-                        });
-                    });
-                } else {
-                    refreshTokenModel.deleteRefreshToken(dbToken.id, (delErr) => {
-                        if (delErr) return reject(delErr);
-                        resolve();
-                    });
-                }
-            });
-        });
-    });
+
+    if (!token) {
+        return;
+    }
+
+    const rows = await refreshTokenModel.findRefreshToken(token);
+
+    if (rows.length === 0) {
+        return;
+    }
+
+    const dbToken = rows[0];
+
+    const user = await userModel.findByRefreshTokenId(
+        dbToken.id
+    );
+
+    if (user) {
+        await userModel.updateRefreshTokenId(
+            user.id,
+            null
+        );
+    }
+
+    await refreshTokenModel.deleteRefreshToken(
+        dbToken.id
+    );
 };
 
-module.exports = {
 
+module.exports = {
     loginUser,
     refreshToken,
     logoutUser

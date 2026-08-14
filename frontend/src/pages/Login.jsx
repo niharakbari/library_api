@@ -1,12 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Eye, EyeOff, BookOpen, AlertCircle } from 'lucide-react';
 import './Login.css';
-
-// Set up default config for axios
-axios.defaults.baseURL = 'http://localhost:3000'; // Assuming default port, can be configured in .env
-axios.defaults.withCredentials = true; // For HttpOnly refresh token cookie
 
 export default function Login() {
   const [email, setEmail] = useState('');

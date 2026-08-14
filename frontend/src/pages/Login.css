@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #F8F8F8;
+  background-color: #F7F7F5;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -33,21 +33,21 @@
 .app-name {
   font-size: 20px;
   font-weight: 700;
-  color: #111111;
+  color: #252525;
   letter-spacing: -0.5px;
 }
 
 .login-title {
   font-size: 24px;
   font-weight: 600;
-  color: #111111;
+  color: #252525;
   margin: 0 0 8px 0;
   letter-spacing: -0.2px;
 }
 
 .login-subtitle {
   font-size: 14px;
-  color: #666666;
+  color: #737373;
   margin: 0;
 }
 
@@ -59,7 +59,7 @@
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: #111111;
+  color: #252525;
   margin-bottom: 8px;
 }
 
@@ -76,7 +76,7 @@
   border: 1px solid #E5E5E5;
   border-radius: 8px;
   background-color: #FFFFFF;
-  color: #111111;
+  color: #252525;
   box-sizing: border-box;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -86,13 +86,13 @@
 .form-input:-webkit-autofill:focus, 
 .form-input:-webkit-autofill:active{
     -webkit-box-shadow: 0 0 0 30px white inset !important;
-    -webkit-text-fill-color: #111111 !important;
+    -webkit-text-fill-color: #252525 !important;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #111111;
-  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.05);
+  border-color: #252525;
+  box-shadow: 0 0 0 3px rgba(37, 37, 37, 0.05);
 }
 
 .password-toggle {
@@ -101,7 +101,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: #666666;
+  color: #737373;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -110,7 +110,7 @@
 }
 
 .password-toggle:hover {
-  color: #111111;
+  color: #252525;
 }
 
 .login-button {
@@ -118,8 +118,8 @@
   padding: 14px 16px;
   font-size: 16px;
   font-weight: 600;
-  color: #111111;
-  background-color: #FFDD00;
+  color: #252525;
+  background-color: #E8C547;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -131,7 +131,7 @@
 }
 
 .login-button:hover:not(:disabled) {
-  background-color: #E6C700;
+  background-color: #D6B43E;
 }
 
 .login-button:active:not(:disabled) {
@@ -159,8 +159,8 @@
 .loading-spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(17, 17, 17, 0.2);
-  border-top-color: #111111;
+  border: 3px solid rgba(37, 37, 37, 0.2);
+  border-top-color: #252525;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

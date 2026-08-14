@@ -12,6 +12,8 @@ const AppError = require("../utils/AppError");
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
+    console.log("into loginuser before calling authservice");
+
     const { accessToken, refreshToken, user } = await authService.loginUser(email, password);
 
     logger.info(`User Logged In : ${email}`);
@@ -27,7 +29,6 @@ const loginUser = asyncHandler(async (req, res) => {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role
         }
     });
 });
@@ -44,7 +45,6 @@ const getMe = asyncHandler(async (req, res) => {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role
         }
     });
 });

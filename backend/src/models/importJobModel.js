@@ -39,9 +39,38 @@ const markCompleted = async (jobId, status) => {
     );
 };
 
+const findAll = async (limit = 50, offset = 0) => {
+    const [rows] = await db.query(
+        `SELECT id, user_id, status, query_text, total_records, processed_records, successful_records, duplicate_records, failed_records, started_at, completed_at, created_at 
+         FROM import_jobs 
+         ORDER BY created_at DESC 
+         LIMIT ? OFFSET ?`,
+        [parseInt(limit), parseInt(offset)]
+    );
+
+    const [countRows] = await db.query(`SELECT COUNT(*) as total FROM import_jobs`);
+    
+    return {
+        jobs: rows,
+        total: countRows[0].total
+    };
+};
+
+const findById = async (jobId) => {
+    const [rows] = await db.query(
+        `SELECT id, user_id, status, query_text, total_records, processed_records, successful_records, duplicate_records, failed_records, started_at, completed_at, created_at 
+         FROM import_jobs 
+         WHERE id = ?`,
+        [jobId]
+    );
+    return rows[0] || null;
+};
+
 module.exports = {
     create,
     updateStatus,
     incrementCounters,
     markCompleted,
+    findAll,
+    findById,
 };

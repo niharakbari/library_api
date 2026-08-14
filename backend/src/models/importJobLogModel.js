@@ -9,6 +9,18 @@ const createLog = async (jobId, level, message, openLibraryKey = null) => {
     return result.insertId;
 };
 
+const findByJobId = async (jobId) => {
+    const [rows] = await db.query(
+        `SELECT id, level, message, open_library_key, created_at 
+         FROM import_job_logs 
+         WHERE import_job_id = ? 
+         ORDER BY created_at ASC`,
+        [jobId]
+    );
+    return rows;
+};
+
 module.exports = {
     createLog,
+    findByJobId,
 };

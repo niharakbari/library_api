@@ -12,16 +12,13 @@ const bookLanguagesModel = require("../../models/bookLanguageModel");
 
 
 const importBook = async (workKey, languages = []) => {
-console.log("into import service");
 
-    console.log("before fetching work");
 
     const work = await openLibraryService.getWork(workKey);
 
     const cleanWorkKey = work.key.replace("/works/", "");
 
 
-    console.log("before existingbook");
     console.log("WORK KEY RECEIVED BY IMPORT:", JSON.stringify(workKey));
 
     const existingBook = await bookModel.findByOpenLibraryWorkKey(cleanWorkKey);
@@ -34,9 +31,6 @@ console.log("into import service");
         };
     }
 
-    console.log(`Book importing.....`);
-
-
 
 
     // Filling books table    
@@ -47,7 +41,7 @@ console.log("into import service");
         coverEditionKey: work.covers?.[0] || null,
         coverId: work.covers?.[0] || null,
     });
-    console.log(`Book with id ${bookId} imported`);
+
     
 
     // search author details...and adding authors one by one

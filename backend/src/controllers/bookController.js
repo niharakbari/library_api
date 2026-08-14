@@ -119,8 +119,46 @@ const getBookEditions = async (req, res, next) => {
 };
 
 
+const bookModel = require("../models/bookModel");
+
+const getLocalCatalog = async (req, res, next) => {
+    try {
+        const limit = Number(req.query.limit) || 20;
+        const offset = Number(req.query.offset) || 0;
+
+        if (limit < 1 || limit > 100) {
+            return res.status(400).json({
+                success: false,
+                message: "Limit must be between 1 and 100.",
+            });
+        }
+
+        if (offset < 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Offset cannot be negative.",
+            });
+        }
+
+        const data = await bookModel.findAllBooks(limit, offset);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                total: data.total,
+                limit,
+                offset,
+                results: data.books,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     searchBooks,
     getBookWork,
-    getBookEditions
+    getBookEditions,
+    getLocalCatalog,
 };

@@ -1,58 +1,54 @@
 const db = require("../config/database");
 
-const register = (user, callback) => {
 
-    const sql = `
+// ---------- Register ----------
+
+const register = async (user) => {
+    const [result] = await db.query(
+        `
         INSERT INTO users
         (
             name,
             email,
             password_hash,
-            role
+        
         )
-        VALUES (?, ?, ?, 'VIEWER')
-    `;
-
-    db.query(
-        sql,
+        VALUES (?, ?, ?')
+        `,
         [
             user.name,
             user.email,
             user.password_hash
-        ],
-        callback
+        ]
     );
 
+    return result;
 };
 
-const updateRole = (id, newRole, callback) => {
-    db.query(
-        "UPDATE users SET role = ? WHERE id = ?",
-        [newRole, id],
-        callback
-    );
-};
 
-const findByEmail = (email, callback) => {
 
-    db.query(
+// ---------- Find By Email ----------
+
+const findByEmail = async (email) => {
+    const [rows] = await db.query(
         "SELECT * FROM users WHERE email = ? LIMIT 1",
-        [email],
-        callback
+        [email]
     );
 
+    return rows;
 };
 
-const findById = (id, callback) => {
 
-    db.query(
+// ---------- Find By ID ----------
+
+const findById = async (id) => {
+    const [rows] = await db.query(
         `
         SELECT
             id,
             name,
             email,
             password_hash,
-            role,
             refresh_token_id,
             created_at,
             updated_at
@@ -60,83 +56,48 @@ const findById = (id, callback) => {
         WHERE id = ?
         LIMIT 1
         `,
-        [id],
-        callback
+        [id]
     );
 
+    return rows[0] || null;
 };
 
-const findAll = (filters, callback) => {
-    let sql = `
-        SELECT
-            id,
-            name,
-            email,
-            password_hash,
-            role,
-            created_at,
-            updated_at
+
+
+
+// ---------- Update User's Refresh Token ID ----------
+
+const updateRefreshTokenId = async (userId, tokenId) => {
+    const [result] = await db.query(
+        "UPDATE users SET refresh_token_id = ? WHERE id = ?",
+        [tokenId, userId]
+    );
+
+    return result;
+};
+
+
+// ---------- Find User By Refresh Token ID ----------
+
+const findByRefreshTokenId = async (tokenId) => {
+    const [rows] = await db.query(
+        `
+        SELECT *
         FROM users
-        WHERE 1=1
-    `;
-    const params = [];
-    
-    if (filters.role) {
-        sql += " AND role = ?";
-        params.push(filters.role);
-    }
-    
-    if (filters.search) {
-        sql += " AND (name LIKE ? OR email LIKE ?)";
-        const searchTerm = `%${filters.search}%`;
-        params.push(searchTerm, searchTerm);
-    }
-
-    sql += " ORDER BY id ASC";
-
-    if (filters.limit && filters.offset !== undefined) {
-        sql += " LIMIT ? OFFSET ?";
-        params.push(parseInt(filters.limit), parseInt(filters.offset));
-    }
-
-    db.query(sql, params, callback);
-};
-
-const countAdmins = (callback) => {
-    db.query(
-        "SELECT COUNT(*) as count FROM users WHERE role = 'ADMIN'",
-        [],
-        (err, results) => {
-            if (err) return callback(err);
-            callback(null, results[0].count);
-        }
+        WHERE refresh_token_id = ?
+        LIMIT 1
+        `,
+        [tokenId]
     );
+
+    return rows[0] || null;
 };
 
-const deleteById = (id, callback) => {
-    db.query("DELETE FROM users WHERE id = ?", [id], callback);
-};
-
-const setRefreshToken =  (token, expires_at, callback) => {
-    db.query("INSERT INTO refresh_tokens (refresh_token, expires_at) values (?, ?)", [token,expires_at], callback)
-}
-
-const updateRefreshToken = (userId, token, callback) => {
-    db.query("UPDATE refresh_tokens SET refresh_token = ? WHERE id = ?", [token, userId], callback);
-};
-
-const findByRefreshToken = (token, callback) => {
-    db.query("SELECT * FROM users WHERE refresh_token_id = ? LIMIT 1", [token], callback);
-};
 
 module.exports = {
     register,
-    updateRole,
     findByEmail,
     findById,
-    findAll,
-    countAdmins,
-    deleteById,
-    updateRefreshToken,
-    findByRefreshToken
+    updateRefreshTokenId,
+    findByRefreshTokenId
 };

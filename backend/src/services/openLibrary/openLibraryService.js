@@ -1,11 +1,13 @@
 const openLibraryClient = require("./openLibraryClient");
 
 const searchBooks = async (title, author , limit=10, offset = 0) => {
+    console.log("in openlibraryservice.searchbook");
+    const page = Math.floor(offset / limit) + 1;
     return openLibraryClient.get(`/search.json`, {
         title,
         author,
         limit,
-        offset
+        page
     })
 }
 

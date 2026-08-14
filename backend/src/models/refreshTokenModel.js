@@ -1,7 +1,8 @@
 const db = require("../config/database");
 
-const saveRefreshToken = (refreshToken, expiresAt, callback) => {
-    db.query(
+
+const saveRefreshToken = async (refreshToken, expiresAt) => {
+    const [result] = await db.query(
         `
         INSERT INTO refresh_tokens
         (
@@ -10,26 +11,54 @@ const saveRefreshToken = (refreshToken, expiresAt, callback) => {
         )
         VALUES (?, ?)
         `,
-        [refreshToken, expiresAt],
-        callback
+        [refreshToken, expiresAt]
     );
+
+    return result;
 };
 
-const findRefreshToken = (refreshToken, callback) => {
-    db.query("SELECT * FROM refresh_tokens WHERE refresh_token = ? LIMIT 1", [refreshToken], callback);
-};
 
-const deleteRefreshToken = (id, callback) => {
-    db.query("DELETE FROM refresh_tokens WHERE id = ?", [id], callback);
-};
-
-const updateRefreshToken = (id, newToken, newExpiresAt, callback) => {
-    db.query(
-        "UPDATE refresh_tokens SET refresh_token = ?, expires_at = ? WHERE id = ?",
-        [newToken, newExpiresAt, id],
-        callback
+const findRefreshToken = async (refreshToken) => {
+    const [rows] = await db.query(
+        `
+        SELECT *
+        FROM refresh_tokens
+        WHERE refresh_token = ?
+        LIMIT 1
+        `,
+        [refreshToken]
     );
+
+    return rows;
 };
+
+
+const deleteRefreshToken = async (id) => {
+    const [result] = await db.query(
+        `
+        DELETE FROM refresh_tokens
+        WHERE id = ?
+        `,
+        [id]
+    );
+
+    return result;
+};
+
+
+const updateRefreshToken = async (id, newToken, newExpiresAt) => {
+    const [result] = await db.query(
+        `
+        UPDATE refresh_tokens
+        SET refresh_token = ?, expires_at = ?
+        WHERE id = ?
+        `,
+        [newToken, newExpiresAt, id]
+    );
+
+    return result;
+};
+
 
 module.exports = {
     saveRefreshToken,
