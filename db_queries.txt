@@ -353,3 +353,24 @@ DROP TABLE IF EXISTS editions;
 ALTER TABLE import_jobs
 ADD COLUMN updated_records INT UNSIGNED NOT NULL DEFAULT 0
 AFTER successful_records;
+
+CREATE TABLE `book_languages` (
+    `book_id` BIGINT UNSIGNED NOT NULL,
+    `language_id` SMALLINT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (`book_id`, `language_id`),
+
+    KEY `idx_book_languages_language_id` (`language_id`),
+
+    CONSTRAINT `fk_book_languages_book`
+        FOREIGN KEY (`book_id`)
+        REFERENCES `books` (`id`)
+        ON DELETE CASCADE,
+
+    CONSTRAINT `fk_book_languages_language`
+        FOREIGN KEY (`language_id`)
+        REFERENCES `languages` (`id`)
+        ON DELETE CASCADE
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_0900_ai_ci;
