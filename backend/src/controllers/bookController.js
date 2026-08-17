@@ -1,16 +1,23 @@
 const bookService = require("../services/bookService");
 
+const languageModel = require('../models/languageModel');
+const subjectModel = require('../models/subjectModel');
+const authorModel = require('../models/authorModel');
+
+
+
+
 const searchBooks = async (req, res, next) => {
     try {
-        const { title, author } = req.query;
+        const { title, author, subject, language } = req.query;
 
         const limit = Number(req.query.limit) || 20;
         const offset = Number(req.query.offset) || 0;
 
-        if (!title && !author) {
+        if (!title && !author&& !subject && !language) {
             return res.status(400).json({
                 success: false,
-                message: "Please provide a title or author to search.",
+                message: "Please Provide details like title, author, subject or language",
             });
         }
 
@@ -31,6 +38,8 @@ const searchBooks = async (req, res, next) => {
         const data = await bookService.getBooksFromOpenLibrary(
             title,
             author,
+            subject,
+            language,
             limit,
             offset,
         );
@@ -38,7 +47,7 @@ const searchBooks = async (req, res, next) => {
         return res.status(200).json({
             success: true,
             data: {
-                total: data.numFound,
+                total: data.num_found,
                 limit,
                 offset,
                 results: data.docs,
@@ -156,9 +165,48 @@ const getLocalCatalog = async (req, res, next) => {
     }
 };
 
+const getLanguages = async (req, res, next) => {
+    try {
+        const languages = await languageModel.getAll();
+        return res.status(200).json({
+            success: true,
+            data: languages
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getSubjects = async (req, res, next) => {
+    try {
+        const subjects = await subjectModel.getAll();
+        return res.status(200).json({
+            success: true,
+            data: subjects
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getAuthors = async (req, res, next) => {
+    try {
+        const authors = await authorModel.getAll();
+        return res.status(200).json({
+            success: true,
+            data: authors
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     searchBooks,
     getBookWork,
     getBookEditions,
     getLocalCatalog,
-};
+    getLanguages,
+    getSubjects,
+    getAuthors
+}

@@ -8,6 +8,8 @@ const importRoutes = require('./routes/bookImportRoutes');
 
 const dashboardRoutes = require('./routes/dashboardRoutes');
 
+const inventoryRoutes = require('./routes/inventoryRoutes');
+
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
@@ -34,6 +36,11 @@ app.use("/api/books", bookRoutes);
 app.use("/api/books/import", importRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
+
+
+app.use("/inventory/search", inventoryRoutes);
+
+
 
 app.use(globalErrorHandler);
 

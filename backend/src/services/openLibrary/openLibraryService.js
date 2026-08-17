@@ -1,11 +1,13 @@
 const openLibraryClient = require("./openLibraryClient");
 
-const searchBooks = async (title, author , limit=10, offset = 0) => {
+const searchBooks = async (title, author, subject, language, limit=10, offset = 0) => {
     console.log("in openlibraryservice.searchbook");
     const page = Math.floor(offset / limit) + 1;
     return openLibraryClient.get(`/search.json`, {
         title,
         author,
+        subject,
+        language,
         limit,
         page
     })
@@ -33,9 +35,10 @@ const getAuthor = async (authorKey) => {
 }
 
 
+
 module.exports = {
     searchBooks,
     getWork,
     getWorkEditions,
-    getAuthor
-};
+    getAuthor,
+    };

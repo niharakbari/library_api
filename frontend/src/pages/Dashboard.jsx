@@ -63,19 +63,35 @@ export default function Dashboard() {
     }
   };
 
-  const StatCard = ({ title, value, icon: Icon, color = 'var(--text-primary)' }) => (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '24px', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</span>
-        <div style={{ padding: '8px', backgroundColor: 'var(--bg)', borderRadius: '8px' }}>
-          <Icon size={20} color={color} />
+  const StatCard = ({ title, value, icon: Icon, color = 'var(--text-dark)', linkTo }) => {
+    const content = (
+      <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</span>
+          <div style={{ padding: '8px', backgroundColor: 'var(--bg)', borderRadius: '8px' }}>
+            <Icon size={20} color={color} />
+          </div>
         </div>
+        <div style={{ fontSize: '32px', fontWeight: 700, color }}>
+          {loading ? '-' : value.toLocaleString()}
+        </div>
+      </>
+    );
+
+    if (linkTo) {
+      return (
+        <Link to={linkTo} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '24px', gap: '16px', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: '24px', gap: '16px' }}>
+        {content}
       </div>
-      <div style={{ fontSize: '32px', fontWeight: 700, color }}>
-        {loading ? '-' : value.toLocaleString()}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="page-container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -88,11 +104,11 @@ export default function Dashboard() {
       <section style={{ marginBottom: '48px' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '20px', color: 'var(--text-secondary)' }}>Library Statistics</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-          <StatCard title="Total Books" value={stats.books} icon={BookOpen} color="var(--primary)" />
-          <StatCard title="Total Authors" value={stats.authors} icon={Users} />
-          <StatCard title="Total Subjects" value={stats.subjects} icon={Tags} />
-          <StatCard title="Languages" value={stats.languages} icon={Globe} />
-          <StatCard title="Active Jobs" value={stats.jobs.running + stats.jobs.pending} icon={Activity} color="var(--success)" />
+          <StatCard title="Total Books" value={stats.books} icon={BookOpen} color="var(--primary)" linkTo="/library" />
+          <StatCard title="Total Authors" value={stats.authors} icon={Users} linkTo="/authors" />
+          <StatCard title="Total Subjects" value={stats.subjects} icon={Tags} linkTo="/subjects" />
+          <StatCard title="Languages" value={stats.languages} icon={Globe} linkTo="/languages" />
+          <StatCard title="Active Jobs" value={stats.jobs.running + stats.jobs.pending} icon={Activity} color="var(--success)" linkTo="/jobs" />
         </div>
       </section>
 

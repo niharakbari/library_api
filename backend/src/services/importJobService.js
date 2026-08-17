@@ -46,16 +46,14 @@ const processBatchInBackground = async (jobId, works) => {
             let itemId = null;
             try {
                 if (!work.key) {
-                    await importJobModel.incrementCounters(jobId, { processed: 1, failed: 1 });
+                    await importJobModel.incrementCounters(jobId, { processed: 1, skipped: 1 });
                     await importJobLogModel.createLog(jobId, 'warning', `Work has no key. Skipping.`, null);
-                    // Can't track an item without a key, but if we wanted to we could generate a fake one. Skipping for now as it's malformed.
                     continue;
                 }
 
                 const cleanWorkKey = work.key.replace("/works/", "");
                 const languages = work.language || [];
 
-                // Create tracking item in 'processing' state
                 itemId = await importJobItemModel.createItem(jobId, {
                     workKey: cleanWorkKey,
                     title: work.title,
@@ -68,19 +66,21 @@ const processBatchInBackground = async (jobId, works) => {
                 if (result.status === "imported") {
                     await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId });
                     await importJobModel.incrementCounters(jobId, { processed: 1, successful: 1 });
+                } else if (result.status === "updated") {
+                    await importJobItemModel.updateItemStatus(itemId, { status: 'updated', bookId: result.bookId });
+                    await importJobModel.incrementCounters(jobId, { processed: 1, updated: 1 });
+                } else if (result.status === "skipped") {
+                    await importJobItemModel.updateItemStatus(itemId, { status: 'skipped', errorMessage: result.errorMessage });
+                    await importJobModel.incrementCounters(jobId, { processed: 1, skipped: 1 });
+                    await importJobLogModel.createLog(jobId, 'warning', `Skipped ${work.key}: ${result.errorMessage}`, work.key);
                 } else if (result.status === "duplicate") {
                     await importJobItemModel.updateItemStatus(itemId, { status: 'duplicate', bookId: result.bookId });
                     await importJobModel.incrementCounters(jobId, { processed: 1, duplicate: 1 });
-                } else {
-                    // Treat updated as imported for the job item status
-                    await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId });
-                    await importJobModel.incrementCounters(jobId, { processed: 1, updated: 1 });
                 }
             } catch (error) {
                 if (itemId) {
                     await importJobItemModel.updateItemStatus(itemId, { status: 'failed', errorMessage: error.message });
                 } else if (work.key) {
-                    // Create it as failed if it failed before creation
                     const cleanWorkKey = work.key.replace("/works/", "");
                     await importJobItemModel.createItem(jobId, {
                         workKey: cleanWorkKey,
@@ -96,8 +96,17 @@ const processBatchInBackground = async (jobId, works) => {
             }
         }
 
-        await importJobModel.markCompleted(jobId, 'completed');
-        await importJobLogModel.createLog(jobId, 'info', 'Job completed successfully.');
+        const job = await importJobModel.findById(jobId);
+        let finalStatus = 'completed';
+        if (job.failed_records > 0 || job.skipped_records > 0) {
+            if (job.successful_records === 0 && job.updated_records === 0 && job.duplicate_records === 0) {
+                finalStatus = 'failed';
+            } else {
+                finalStatus = 'partially_completed';
+            }
+        }
+        await importJobModel.markCompleted(jobId, finalStatus);
+        await importJobLogModel.createLog(jobId, 'info', `Job finished with status: ${finalStatus}`);
 
     } catch (criticalError) {
         // Fallback for catastrophic failure in the batch process itself

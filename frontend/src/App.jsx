@@ -7,6 +7,9 @@ import MyLibrary from './pages/MyLibrary';
 import BookDetails from './pages/BookDetails';
 import ImportJobs from './pages/ImportJobs';
 import JobLogs from './pages/JobLogs';
+import Authors from './pages/Authors';
+import Subjects from './pages/Subjects';
+import Languages from './pages/Languages';
 import './index.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -31,6 +34,9 @@ function App() {
           <Route path="/books/:workKey" element={<BookDetails />} />
           <Route path="/jobs" element={<ImportJobs />} />
           <Route path="/jobs/:jobId/logs" element={<JobLogs />} />
+          <Route path="/authors" element={<Authors />} />
+          <Route path="/subjects" element={<Subjects />} />
+          <Route path="/languages" element={<Languages />} />
         </Route>
       </Routes>
     </BrowserRouter>

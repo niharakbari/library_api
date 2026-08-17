@@ -402,3 +402,7 @@ CREATE TABLE import_job_items (
         REFERENCES import_jobs (id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+ALTER TABLE import_jobs
+ADD COLUMN skipped_records INT UNSIGNED NOT NULL DEFAULT 0
+AFTER failed_records;

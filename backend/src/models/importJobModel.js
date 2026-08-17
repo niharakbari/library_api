@@ -17,16 +17,17 @@ const updateStatus = async (jobId, status) => {
     await db.query(query, [status, jobId]);
 };
 
-const incrementCounters = async (jobId, { processed = 0, successful = 0, updated = 0, duplicate = 0, failed = 0 }) => {
+const incrementCounters = async (jobId, { processed = 0, successful = 0, updated = 0, duplicate = 0, skipped = 0, failed = 0 }) => {
     await db.query(
         `UPDATE import_jobs 
          SET processed_records = processed_records + ?,
              successful_records = successful_records + ?,
              updated_records = updated_records + ?,
              duplicate_records = duplicate_records + ?,
+             skipped_records = skipped_records + ?,
              failed_records = failed_records + ?
          WHERE id = ?`,
-        [processed, successful, updated, duplicate, failed, jobId]
+        [processed, successful, updated, duplicate, skipped, failed, jobId]
     );
 };
 
@@ -41,7 +42,7 @@ const markCompleted = async (jobId, status) => {
 
 const findAll = async (limit = 50, offset = 0) => {
     const [rows] = await db.query(
-        `SELECT id, user_id, status, query_text, total_records, processed_records, successful_records, duplicate_records, failed_records, started_at, completed_at, created_at 
+        `SELECT id, user_id, status, query_text, total_records, processed_records, successful_records, updated_records, duplicate_records, skipped_records, failed_records, started_at, completed_at, created_at 
          FROM import_jobs 
          ORDER BY created_at DESC 
          LIMIT ? OFFSET ?`,
@@ -58,7 +59,7 @@ const findAll = async (limit = 50, offset = 0) => {
 
 const findById = async (jobId) => {
     const [rows] = await db.query(
-        `SELECT id, user_id, status, query_text, total_records, processed_records, successful_records, duplicate_records, failed_records, started_at, completed_at, created_at 
+        `SELECT id, user_id, status, query_text, total_records, processed_records, successful_records, updated_records, duplicate_records, skipped_records, failed_records, started_at, completed_at, created_at 
          FROM import_jobs 
          WHERE id = ?`,
         [jobId]

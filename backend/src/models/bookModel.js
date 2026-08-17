@@ -1,7 +1,7 @@
 const db = require("../config/database");
 
-const findByOpenLibraryWorkKey = async (workKey) => {
-    const [rows] = await db.query(
+const findByOpenLibraryWorkKey = async (workKey, connection = db) => {
+    const [rows] = await connection.query(
         `SELECT id
          FROM books
          WHERE open_library_work_key = ?`,
@@ -17,8 +17,8 @@ const create = async ({
     firstPublishYear,
     coverEditionKey,
     coverId,
-}) => {
-    const [result] = await db.query(
+},  connection = db) => {
+    const [result] = await connection.query(
         `INSERT INTO books (
             open_library_work_key,
             title,
@@ -89,8 +89,26 @@ const findAllBooks = async (limit = 20, offset = 0) => {
     };
 };
 
+const update = async (id, {
+    title,
+    firstPublishYear,
+    coverEditionKey,
+    coverId,
+}, connection = db) => {
+    await connection.query(
+        `UPDATE books SET
+            title = ?,
+            first_publish_year = ?,
+            cover_edition_key = ?,
+            cover_id = ?
+         WHERE id = ?`,
+        [title, firstPublishYear, coverEditionKey, coverId, id]
+    );
+};
+
 module.exports = {
     findByOpenLibraryWorkKey,
     create,
     findAllBooks,
+    update,
 };

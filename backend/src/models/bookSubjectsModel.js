@@ -1,7 +1,7 @@
 const db = require("../config/database");
 
-const create = async (bookId, subjectId) => {
-    const [result] = await db.query(
+const create = async (bookId, subjectId, connection = db) => {
+    const [result] = await connection.query(
         `INSERT IGNORE INTO book_subjects (
             book_id,
             subject_id

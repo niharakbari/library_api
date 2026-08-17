@@ -51,16 +51,29 @@ const importBook = async (req, res, next) => {
             if (result.status === "imported") {
                 await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId, title: result.bookTitle });
                 await importJobModel.incrementCounters(jobId, { processed: 1, successful: 1 });
+            } else if (result.status === "updated") {
+                await importJobItemModel.updateItemStatus(itemId, { status: 'updated', bookId: result.bookId, title: result.bookTitle });
+                await importJobModel.incrementCounters(jobId, { processed: 1, updated: 1 });
+            } else if (result.status === "skipped") {
+                await importJobItemModel.updateItemStatus(itemId, { status: 'skipped', errorMessage: result.errorMessage });
+                await importJobModel.incrementCounters(jobId, { processed: 1, skipped: 1 });
+                await importJobLogModel.createLog(jobId, 'warning', `Skipped ${workKey}: ${result.errorMessage}`);
             } else if (result.status === "duplicate") {
                 await importJobItemModel.updateItemStatus(itemId, { status: 'duplicate', bookId: result.bookId, title: result.bookTitle });
                 await importJobModel.incrementCounters(jobId, { processed: 1, duplicate: 1 });  
-            } else {
-                await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId, title: result.bookTitle });
-                await importJobModel.incrementCounters(jobId, { processed: 1, updated: 1 });
             }
 
-            await importJobModel.markCompleted(jobId, 'completed');
-            await importJobLogModel.createLog(jobId, 'info', 'Job completed successfully.');
+            const job = await importJobModel.findById(jobId);
+            let finalStatus = 'completed';
+            if (job.failed_records > 0 || job.skipped_records > 0) {
+                if (job.successful_records === 0 && job.updated_records === 0 && job.duplicate_records === 0) {
+                    finalStatus = 'failed';
+                } else {
+                    finalStatus = 'partially_completed';
+                }
+            }
+            await importJobModel.markCompleted(jobId, finalStatus);
+            await importJobLogModel.createLog(jobId, 'info', `Job finished with status: ${finalStatus}`);
 
             return res.status(200).json({
                 success: true,
