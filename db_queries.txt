@@ -374,3 +374,31 @@ CREATE TABLE `book_languages` (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE import_job_items (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    import_job_id BIGINT UNSIGNED NOT NULL,
+    open_library_work_key VARCHAR(100) NOT NULL,
+    title VARCHAR(500) NULL,
+    languages VARCHAR(500) NULL,
+    status ENUM(
+        'processing',
+        'imported',
+        'duplicate',
+        'failed',
+        'skipped'
+    ) NOT NULL DEFAULT 'processing',
+    book_id BIGINT UNSIGNED NULL,
+    error_message TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_import_job_items_job_id (import_job_id),
+    KEY idx_import_job_items_work_key (open_library_work_key),
+    CONSTRAINT fk_import_job_items_job
+        FOREIGN KEY (import_job_id)
+        REFERENCES import_jobs (id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

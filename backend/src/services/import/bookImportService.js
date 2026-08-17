@@ -137,6 +137,7 @@ const importBook = async (workKey, languages = []) => {
     return {
         status: "imported",
         bookId,
+        bookTitle: work.title
     };
 };
 

@@ -47,8 +47,9 @@ When writing or modifying code in this project, these conventions are **mandator
 - **book_subjects**: Junction table connecting books to subjects (Many-to-Many).
 - **languages**: Stores language codes.
 - **book_languages**: Junction table connecting books to languages (Many-to-Many).
-- **import_jobs**: Tracks the status (running, completed, failed) and counters (processed, successful) of batch imports.
-- **import_job_logs**: Stores individual granular logs and errors for a specific `import_job`.
+- **import_jobs**: Tracks the aggregate status (running, completed, failed) and counters (processed, successful) of batch/single imports.
+- **import_job_items**: Stores the exact per-work result (status: processing, imported, duplicate, failed, skipped), languages, title, and book ID mapping for every individual work processed during an import job.
+- **import_job_logs**: Stores individual technical execution logs and errors for a specific `import_job`.
 
 ## 6. Open Library Integration Flow
 Located in `src/services/openLibrary/`:

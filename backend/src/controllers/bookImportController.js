@@ -6,6 +6,8 @@ const importJobLogModel = require("../models/importJobLogModel");
 const importJobService = require("../services/importJobService");
 
 
+const importJobItemModel = require("../models/importJobItemModel");
+
 const importBook = async (req, res, next) => {
     try {
         const { workKey } = req.params;
@@ -32,14 +34,28 @@ const importBook = async (req, res, next) => {
         await importJobModel.updateStatus(jobId, 'running');
         await importJobLogModel.createLog(jobId, 'info', `Started single import for work ${workKey}`);
 
+        let itemId = null;
         try {
+            const cleanWorkKey = workKey.replace("/works/", "");
+            
+            // Create item in processing state (title unknown until returned)
+            itemId = await importJobItemModel.createItem(jobId, {
+                workKey: cleanWorkKey,
+                title: null,
+                languages: languages,
+                status: 'processing'
+            });
+
             const result = await bookImportService.importBook(workKey, languages);
 
             if (result.status === "imported") {
+                await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId, title: result.bookTitle });
                 await importJobModel.incrementCounters(jobId, { processed: 1, successful: 1 });
             } else if (result.status === "duplicate") {
+                await importJobItemModel.updateItemStatus(itemId, { status: 'duplicate', bookId: result.bookId, title: result.bookTitle });
                 await importJobModel.incrementCounters(jobId, { processed: 1, duplicate: 1 });  
             } else {
+                await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId, title: result.bookTitle });
                 await importJobModel.incrementCounters(jobId, { processed: 1, updated: 1 });
             }
 
@@ -51,6 +67,17 @@ const importBook = async (req, res, next) => {
                 data: result,
             });
         } catch (importError) {
+            if (itemId) {
+                await importJobItemModel.updateItemStatus(itemId, { status: 'failed', errorMessage: importError.message });
+            } else {
+                const cleanWorkKey = workKey.replace("/works/", "");
+                await importJobItemModel.createItem(jobId, {
+                    workKey: cleanWorkKey,
+                    languages: languages,
+                    status: 'failed',
+                    errorMessage: importError.message
+                });
+            }
             await importJobModel.incrementCounters(jobId, { processed: 1, failed: 1 });
             await importJobModel.markCompleted(jobId, 'failed');
             await importJobLogModel.createLog(jobId, 'error', `Error importing work: ${importError.message}`, workKey);

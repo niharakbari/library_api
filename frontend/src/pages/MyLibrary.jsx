@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Library, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function MyLibrary() {
+  const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -83,12 +84,14 @@ export default function MyLibrary() {
               <div 
                 key={work.key} 
                 className="card" 
+                onClick={() => navigate(`/books/${work.key.replace('/works/', '')}`)}
                 style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
                   padding: '16px', 
                   gap: '16px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)'
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)',
+                  cursor: 'pointer'
                 }}
               >
                 <div style={{ position: 'relative', width: '100%', height: '200px', backgroundColor: 'var(--bg)', borderRadius: '8px', overflow: 'hidden' }}>
