@@ -1,17 +1,19 @@
 const openLibraryClient = require("./openLibraryClient");
 
-const searchBooks = async (title, author, subject, language, limit=10, offset = 0) => {
+const searchBooks = async (q, title, author, subject, language, limit=10, offset = 0) => {
     console.log("in openlibraryservice.searchbook");
     const page = Math.floor(offset / limit) + 1;
-    return openLibraryClient.get(`/search.json`, {
-        title,
-        author,
-        subject,
-        language,
-        limit,
-        page
-    })
-}
+    
+    // Build query params dynamically to avoid sending undefined values
+    const queryParams = { limit, page };
+    if (q) queryParams.q = q;
+    if (title) queryParams.title = title;
+    if (author) queryParams.author = author;
+    if (subject) queryParams.subject = subject;
+    if (language) queryParams.language = language;
+    
+    return openLibraryClient.get(`/search.json`, queryParams);
+};
 
 
 const getWork = async (workKey) => {

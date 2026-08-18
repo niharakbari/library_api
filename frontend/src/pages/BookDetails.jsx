@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Download, Loader2 } from 'lucide-react';
 
 export default function BookDetails() {
   const { workKey } = useParams();
   const [work, setWork] = useState(null);
   const [editions, setEditions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [message, setMessage] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,6 +29,26 @@ export default function BookDetails() {
     };
     if (workKey) fetchData();
   }, [workKey]);
+
+  const handleImport = async () => {
+    setImporting(true);
+    setMessage(null);
+    try {
+      const cleanKey = workKey.replace('/works/', '');
+      const response = await axios.post(`/api/books/import/${cleanKey}`);
+      if (response.data.success) {
+        if (response.data.data?.status === 'duplicate') {
+          setMessage({ type: 'error', text: 'Already Imported — This book is already in your library.' });
+        } else {
+          setMessage({ type: 'success', text: 'Work imported successfully!' });
+        }
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to import book.' });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   if (loading) return <div className="page-container"><div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading details...</div></div>;
   if (!work) return <div className="page-container"><div style={{ textAlign: 'center', padding: '40px', color: 'var(--error)' }}>Record not found.</div></div>;
@@ -51,7 +73,32 @@ export default function BookDetails() {
         </div>
         
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: '36px', fontWeight: 700, margin: '0 0 16px 0', lineHeight: 1.2 }}>{work.title}</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '20px' }}>
+            <h1 style={{ fontSize: '36px', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{work.title}</h1>
+            <button 
+              className="btn-primary"
+              onClick={handleImport}
+              disabled={importing}
+              style={{ flexShrink: 0 }}
+            >
+              {importing ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
+              Import to Library
+            </button>
+          </div>
+          
+          {message && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              backgroundColor: message.type === 'error' ? 'var(--error-bg)' : 'var(--success-bg)',
+              color: message.type === 'error' ? 'var(--error)' : 'var(--success)',
+              border: `1px solid ${message.type === 'error' ? '#FFCDCD' : '#C8E6C9'}`
+            }}>
+              {message.text}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: '24px', marginBottom: '32px', color: 'var(--text-secondary)', fontSize: '15px' }}>
             <span><strong>First Published:</strong> {work.first_publish_year || work.first_publish_date || 'Unknown'}</span>
             <span><strong>ID:</strong> {workKey}</span>

@@ -18,7 +18,7 @@ const searchAuthorByName = async (authorName) => {
         WHERE a.name LIKE ?
         ORDER BY b.title ASC
         `,
-        [`${authorName}`]
+        [`%${authorName}%`]
     );
 
     return rows;
@@ -64,7 +64,53 @@ const searchTitleByName = async (bookTitle) => {
         WHERE b.title LIKE ?
         ORDER BY b.title ASC
         `,
-        [`${bookTitle}`]
+        [`%${bookTitle}%`]
+    );
+
+    return rows;
+};
+
+const searchSubjectByName = async (subjectName) => {
+    const [rows] = await db.query(
+        `
+        SELECT DISTINCT
+            b.id,
+            b.open_library_work_key,
+            b.title,
+            b.first_publish_year,
+            b.cover_edition_key,
+            b.cover_id
+        FROM books b
+        INNER JOIN book_subjects bs
+            ON b.id = bs.book_id
+        INNER JOIN subjects s
+            ON bs.subject_id = s.id
+        WHERE s.name LIKE ?
+        ORDER BY b.title ASC
+        `,
+        [`%${subjectName}%`]
+    );
+
+    return rows;
+
+};
+
+const searchByYear = async (year) => {
+    const [rows] = await db.query(
+        `
+        SELECT DISTINCT
+            b.id,
+            b.open_library_work_key,
+            b.title,
+            b.first_publish_year,
+            b.cover_edition_key,
+            b.cover_id
+        FROM books b
+        WHERE b.first_publish_year = ?
+        ORDER BY b.title ASC
+
+        `,
+        [`${year}`]
     );
 
     return rows;
@@ -72,8 +118,11 @@ const searchTitleByName = async (bookTitle) => {
 
 
 
+
 module.exports = {
     searchAuthorByName,
     searchLanguageByName,
-    searchTitleByName
+    searchTitleByName,
+    searchSubjectByName,
+    searchByYear
 }

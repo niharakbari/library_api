@@ -65,7 +65,7 @@ export default function Authors() {
             {filteredAuthors.map((author) => (
               <div 
                 key={author.id} 
-                onClick={() => navigate(`/search?author=${encodeURIComponent(author.name)}`)}
+                onClick={() => navigate(`/search?mode=local&type=author&q=${encodeURIComponent(author.name)}`)}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', 
                   border: '1px solid var(--border)', borderRadius: '12px', cursor: 'pointer',

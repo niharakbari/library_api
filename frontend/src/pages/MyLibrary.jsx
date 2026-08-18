@@ -12,12 +12,30 @@ export default function MyLibrary() {
   const [error, setError] = useState(null);
   const limit = 20;
 
+  const [filters, setFilters] = useState({
+    q: '',
+    title: '',
+    author: '',
+    subject: '',
+    language: '',
+    year: ''
+  });
+  const [sort, setSort] = useState('recently_added');
+
   const fetchCatalog = async (currentOffset = 0) => {
     setLoading(true);
     setError(null);
     try {
+      // Remove empty filters
+      const activeFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v.trim() !== ''));
+      
       const response = await axios.get('/api/books/catalog', {
-        params: { limit, offset: currentOffset }
+        params: { 
+          limit, 
+          offset: currentOffset,
+          sort,
+          ...activeFilters
+        }
       });
       if (response.data.success) {
         setResults(response.data.data.results || []);
@@ -33,7 +51,39 @@ export default function MyLibrary() {
 
   useEffect(() => {
     fetchCatalog(0);
-  }, []);
+  }, [sort]);
+
+  const handleApplyFilters = (e) => {
+    e.preventDefault();
+    fetchCatalog(0);
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      q: '',
+      title: '',
+      author: '',
+      subject: '',
+      language: '',
+      year: ''
+    });
+    // fetchCatalog(0) will be called if we manually trigger it, or we just call it
+    // Wait, state update is async, so we pass empty filters explicitly.
+    setLoading(true);
+    axios.get('/api/books/catalog', { params: { limit, offset: 0, sort } })
+      .then(res => {
+        setResults(res.data.data.results || []);
+        setTotal(res.data.data.total || 0);
+        setOffset(0);
+      })
+      .catch(() => setError('Failed to fetch local catalog.'))
+      .finally(() => setLoading(false));
+  };
 
   const handleNextPage = () => {
     fetchCatalog(offset + limit);
@@ -47,13 +97,61 @@ export default function MyLibrary() {
 
   return (
     <div className="page-container">
-      <header className="page-header" style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+      <header className="page-header" style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', marginBottom: '24px' }}>
         <Library size={32} color="var(--primary)" />
         <div>
           <h1 className="page-title">My Library</h1>
           <p className="page-subtitle">View books imported into your local catalog.</p>
         </div>
       </header>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '20px' }}>
+        <form onSubmit={handleApplyFilters} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>General Search</label>
+              <input type="text" name="q" value={filters.q} onChange={handleFilterChange} placeholder="Any keyword..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>Title</label>
+              <input type="text" name="title" value={filters.title} onChange={handleFilterChange} placeholder="Title..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>Author</label>
+              <input type="text" name="author" value={filters.author} onChange={handleFilterChange} placeholder="Author..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>Subject</label>
+              <input type="text" name="subject" value={filters.subject} onChange={handleFilterChange} placeholder="Subject..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>Language Code</label>
+              <input type="text" name="language" value={filters.language} onChange={handleFilterChange} placeholder="e.g. eng, fre..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>Publish Year</label>
+              <input type="number" name="year" value={filters.year} onChange={handleFilterChange} placeholder="e.g. 2024..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Sort By:</label>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none', backgroundColor: 'var(--bg)', cursor: 'pointer' }}>
+                <option value="recently_added">Recently Added</option>
+                <option value="title_asc">Title (A-Z)</option>
+                <option value="title_desc">Title (Z-A)</option>
+                <option value="year_newest">Newest First</option>
+                <option value="year_oldest">Oldest First</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" onClick={handleClearFilters} className="btn-secondary">Clear Filters</button>
+              <button type="submit" className="btn-primary">Apply Filters</button>
+            </div>
+          </div>
+        </form>
+      </div>
 
       {error && (
         <div style={{

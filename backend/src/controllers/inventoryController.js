@@ -59,10 +59,28 @@ const searchTitle = asyncHandler(async (req, res) => {
     });
 });
 
+const searchSubject = asyncHandler(async (req, res) => {
+    const { subject } = req.query;
+
+    if (!subject) {
+        return res.status(400).json({
+            success: false,
+            message: "Subject is required"
+        });
+    }
+
+    const data = await inventoryModel.searchSubjectByName(subject);
+
+    return res.status(200).json({
+        success: true,
+        data
+    });
+});
+
 
 module.exports = {
     searchAuthor,
     searchLanguage,
-    searchTitle
-    
+    searchTitle,
+    searchSubject
 }

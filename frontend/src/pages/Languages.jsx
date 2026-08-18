@@ -65,7 +65,7 @@ export default function Languages() {
             {filteredLanguages.map((lang) => (
               <div 
                 key={lang.id} 
-                onClick={() => navigate(`/search?language=${encodeURIComponent(lang.code)}`)}
+                onClick={() => navigate(`/search?mode=local&type=language&q=${encodeURIComponent(lang.code)}`)}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', 
                   backgroundColor: 'var(--bg)', borderRadius: '8px', cursor: 'pointer',

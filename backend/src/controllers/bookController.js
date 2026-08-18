@@ -9,15 +9,15 @@ const authorModel = require('../models/authorModel');
 
 const searchBooks = async (req, res, next) => {
     try {
-        const { title, author, subject, language } = req.query;
+        const { q, title, author, subject, language } = req.query;
 
         const limit = Number(req.query.limit) || 20;
         const offset = Number(req.query.offset) || 0;
 
-        if (!title && !author&& !subject && !language) {
+        if (!q && !title && !author && !subject && !language) {
             return res.status(400).json({
                 success: false,
-                message: "Please Provide details like title, author, subject or language",
+                message: "Please Provide details like general query (q), title, author, subject or language",
             });
         }
 
@@ -36,6 +36,7 @@ const searchBooks = async (req, res, next) => {
         }
 
         const data = await bookService.getBooksFromOpenLibrary(
+            q,
             title,
             author,
             subject,
@@ -132,6 +133,8 @@ const bookModel = require("../models/bookModel");
 
 const getLocalCatalog = async (req, res, next) => {
     try {
+        const { q, title, author, subject, language, year, sort } = req.query;
+
         const limit = Number(req.query.limit) || 20;
         const offset = Number(req.query.offset) || 0;
 
@@ -149,7 +152,16 @@ const getLocalCatalog = async (req, res, next) => {
             });
         }
 
-        const data = await bookModel.findAllBooks(limit, offset);
+        const filters = {
+            q,
+            title,
+            author,
+            subject,
+            language,
+            year
+        };
+
+        const data = await bookModel.findAllBooks(limit, offset, filters, sort);
 
         return res.status(200).json({
             success: true,

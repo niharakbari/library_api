@@ -11,11 +11,13 @@ export default function BookSearch() {
   const [searchMode, setSearchMode] = useState('openlibrary'); // 'openlibrary' | 'local'
 
   // Open Library Search State
+  const [q, setQ] = useState(searchParams.get('q') || '');
   const [title, setTitle] = useState(searchParams.get('title') || '');
   const [author, setAuthor] = useState(searchParams.get('author') || '');
   const [subject, setSubject] = useState(searchParams.get('subject') || '');
   const [language, setLanguage] = useState(searchParams.get('language') || '');
   const [searchLimit, setSearchLimit] = useState(20);
+  const [advancedMode, setAdvancedMode] = useState(false);
   
   // Local Library Search State
   const [localSearchType, setLocalSearchType] = useState('title');
@@ -26,6 +28,7 @@ export default function BookSearch() {
   const [results, setResults] = useState([]);
   const [total, setTotal] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [message, setMessage] = useState(null);
 
   // Import State
@@ -33,11 +36,27 @@ export default function BookSearch() {
   const [isBatchImporting, setIsBatchImporting] = useState(false);
   const [importingWorks, setImportingWorks] = useState({});
   const [selectedWorks, setSelectedWorks] = useState(new Set());
+  const [activeJobId, setActiveJobId] = useState(null);
+  const [activeJobData, setActiveJobData] = useState(null);
 
   // Auto-search on mount if query params exist
   useEffect(() => {
-    if (searchParams.get('title') || searchParams.get('author') || searchParams.get('subject') || searchParams.get('language')) {
+    const mode = searchParams.get('mode');
+    
+    if (mode === 'local') {
+      const type = searchParams.get('type') || 'title';
+      const query = searchParams.get('q') || '';
+      
+      setSearchMode('local');
+      setLocalSearchType(type);
+      setLocalSearchQuery(query);
+      
+      if (query) {
+        executeLocalSearch(type, query);
+      }
+    } else if (searchParams.get('q') || searchParams.get('title') || searchParams.get('author') || searchParams.get('subject') || searchParams.get('language')) {
       executeOpenLibrarySearch(0, {
+        q: searchParams.get('q') || '',
         t: searchParams.get('title') || '',
         a: searchParams.get('author') || '',
         s: searchParams.get('subject') || '',
@@ -46,13 +65,50 @@ export default function BookSearch() {
     }
   }, []); // Run only on mount
 
+  // Auto-hide messages after 4 seconds (only for non-permanent messages, e.g., we might want to keep the final result a bit longer or let it auto-hide)
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  // Poll for active job completion
+  useEffect(() => {
+    let interval;
+    if (activeJobId) {
+      // Fetch immediately once
+      const fetchJob = async () => {
+        try {
+          const response = await axios.get(`/api/books/import/jobs/${activeJobId}`);
+          if (response.data.success) {
+            const job = response.data.data;
+            setActiveJobData(job);
+            if (job && (job.status === 'completed' || job.status === 'partially_completed' || job.status === 'failed')) {
+              clearInterval(interval);
+              setActiveJobId(null);
+            }
+          }
+        } catch (error) {
+          console.error("Polling error", error);
+        }
+      };
+      fetchJob();
+      interval = setInterval(fetchJob, 1000); // Check every second for snappy updates
+    }
+    return () => clearInterval(interval);
+  }, [activeJobId]);
+
   const executeOpenLibrarySearch = async (currentOffset = 0, overrideParams = null) => {
+    const queryQ = overrideParams?.q ?? q;
     const t = overrideParams?.t ?? title;
     const a = overrideParams?.a ?? author;
     const s = overrideParams?.s ?? subject;
     const l = overrideParams?.l ?? language;
 
-    if (!t && !a && !s && !l) return;
+    if (!queryQ && !t && !a && !s && !l) return;
 
     setIsSearching(true);
     setMessage(null);
@@ -61,7 +117,7 @@ export default function BookSearch() {
     
     try {
       const response = await axios.get('/api/books/search', {
-        params: { title: t, author: a, subject: s, language: l, limit: searchLimit, offset: currentOffset }
+        params: { q: queryQ, title: t, author: a, subject: s, language: l, limit: searchLimit, offset: currentOffset }
       });
       if (response.data.success) {
         setResults(response.data.data.results || []);
@@ -72,19 +128,24 @@ export default function BookSearch() {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to search Open Library.' });
     } finally {
       setIsSearching(false);
+      setHasSearched(true);
     }
   };
 
-  const executeLocalSearch = async () => {
-    if (!localSearchQuery.trim()) return;
+  const executeLocalSearch = async (overrideType = null, overrideQuery = null) => {
+    const typeToUse = overrideType || localSearchType;
+    const queryToUse = overrideQuery || localSearchQuery;
+    
+    if (!queryToUse.trim()) return;
 
     setIsSearching(true);
     setMessage(null);
     setSelectedWorks(new Set());
+    setSearchMode('local');
     
     try {
-      const response = await axios.get(`/inventory/search/${localSearchType}`, {
-        params: { [localSearchType]: localSearchQuery }
+      const response = await axios.get(`/inventory/search/${typeToUse}`, {
+        params: { [typeToUse]: queryToUse }
       });
       if (response.data.success) {
         // Map local inventory to common card format
@@ -105,6 +166,7 @@ export default function BookSearch() {
       setMessage({ type: 'error', text: error.response?.data?.message || `Failed to search Local Library by ${localSearchType}.` });
     } finally {
       setIsSearching(false);
+      setHasSearched(true);
     }
   };
 
@@ -168,31 +230,45 @@ export default function BookSearch() {
   const handleImportSelected = async () => {
     if (selectedWorks.size === 0) return;
     setIsBatchImporting(true);
-    let successCount = 0;
-    for (const key of selectedWorks) {
-      setImportingWorks(prev => ({ ...prev, [key]: true }));
-      try {
-        const cleanKey = key.replace('/works/', '');
-        await axios.post(`/api/books/import/${cleanKey}`);
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to import ${key}`, error);
-      } finally {
-        setImportingWorks(prev => ({ ...prev, [key]: false }));
+    
+    // Construct the array of works to send
+    const worksToImport = results
+      .filter(w => selectedWorks.has(w.key))
+      .map(w => ({
+        key: w.key,
+        title: w.title,
+        language: w.language || []
+      }));
+
+    try {
+      const response = await axios.post('/api/books/import/selected', { works: worksToImport });
+      if (response.data.success) {
+        setMessage({ type: 'success', text: response.data.message || 'Import job started successfully. Waiting for completion...' });
+        setSelectedWorks(new Set());
+        if (response.data.data?.jobId) {
+          setActiveJobId(response.data.data.jobId);
+          setActiveJobData(null); // Reset job data for the new job
+        }
       }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to start import job for selected works.' });
+      console.error("Failed to import selected", error);
+    } finally {
+      setIsBatchImporting(false);
     }
-    setIsBatchImporting(false);
-    setMessage({ type: 'success', text: `Successfully imported ${successCount} out of ${selectedWorks.size} selected works.` });
-    setSelectedWorks(new Set());
   };
 
   const handleBatchImport = async () => {
-    if (!title && !author && !subject && !language) return;
+    if (!q && !title && !author && !subject && !language) return;
     setIsBatchImporting(true);
     try {
-      const response = await axios.post('/api/books/import/batch', { title, author, subject, language, limit: batchLimit, offset: 0 });
+      const response = await axios.post('/api/books/import/batch', { q, title, author, subject, language, limit: batchLimit, offset: 0 });
       if (response.data.success) {
-        setMessage({ type: 'success', text: `Batch job started! Job ID: ${response.data.data.jobId}` });
+        setMessage({ type: 'success', text: response.data.message || 'Batch import job started successfully. Waiting for completion...' });
+        if (response.data.data?.jobId) {
+          setActiveJobId(response.data.data.jobId);
+          setActiveJobData(null); // Reset job data for the new job
+        }
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to start batch import.' });
@@ -211,7 +287,7 @@ export default function BookSearch() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
         <button 
-          onClick={() => { setSearchMode('openlibrary'); setResults([]); setTotal(0); setMessage(null); }}
+          onClick={() => { setSearchMode('openlibrary'); setResults([]); setTotal(0); setMessage(null); setHasSearched(false); }}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px',
             backgroundColor: searchMode === 'openlibrary' ? 'var(--primary)' : 'transparent',
@@ -223,7 +299,7 @@ export default function BookSearch() {
           <BookOpen size={18} /> Open Library
         </button>
         <button 
-          onClick={() => { setSearchMode('local'); setResults([]); setTotal(0); setMessage(null); }}
+          onClick={() => { setSearchMode('local'); setResults([]); setTotal(0); setMessage(null); setHasSearched(false); }}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px',
             backgroundColor: searchMode === 'local' ? 'var(--primary)' : 'transparent',
@@ -249,35 +325,94 @@ export default function BookSearch() {
         </div>
       )}
 
+      {/* Progress Bar Banner */}
+      {activeJobData && (
+        <div className="card" style={{ marginBottom: '24px', padding: '20px', border: activeJobData.status === 'completed' ? '1px solid var(--success)' : activeJobData.status === 'failed' ? '1px solid var(--error)' : '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+              {activeJobData.status === 'completed' || activeJobData.status === 'partially_completed' || activeJobData.status === 'failed'
+                ? `Import complete — ${activeJobData.processed_records} / ${activeJobData.total_records} books`
+                : `Importing ${activeJobData.processed_records} / ${activeJobData.total_records} books...`}
+            </h3>
+            {(activeJobData.status === 'completed' || activeJobData.status === 'partially_completed' || activeJobData.status === 'failed') && (
+              <button 
+                onClick={() => setActiveJobData(null)} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', textDecoration: 'underline' }}
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+          
+          <div style={{ height: '8px', backgroundColor: 'var(--bg)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+            <div style={{ 
+              width: `${activeJobData.total_records > 0 ? (activeJobData.processed_records / activeJobData.total_records) * 100 : 0}%`, 
+              height: '100%', 
+              backgroundColor: activeJobData.status === 'failed' ? 'var(--error)' : activeJobData.status === 'completed' ? 'var(--success)' : 'var(--primary)',
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '14px' }}>
+            <span style={{ color: 'var(--success)', fontWeight: 500 }}>{activeJobData.successful_records} Imported</span>
+            <span style={{ color: 'var(--primary)', fontWeight: 500 }}>{activeJobData.updated_records} Updated</span>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{activeJobData.skipped_records} Skipped</span>
+            <span style={{ color: 'var(--error)', fontWeight: 500 }}>{activeJobData.failed_records} Failed</span>
+            <span style={{ color: '#F59E0B', fontWeight: 500 }}>{activeJobData.duplicate_records} Duplicate</span>
+          </div>
+        </div>
+      )}
+
       {/* Search Forms */}
       <div className="card" style={{ marginBottom: '32px' }}>
         {searchMode === 'openlibrary' ? (
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 150px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Title</label>
-              <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+              <button 
+                type="button" 
+                onClick={() => setAdvancedMode(!advancedMode)} 
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '14px', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {advancedMode ? 'Use General Search' : 'Use Advanced Search'}
+              </button>
             </div>
-            <div style={{ flex: '1 1 150px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Author</label>
-              <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={author} onChange={(e) => setAuthor(e.target.value)} />
-            </div>
-            <div style={{ flex: '1 1 150px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Subject</label>
-              <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={subject} onChange={(e) => setSubject(e.target.value)} />
-            </div>
-            <div style={{ flex: '1 1 100px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Language (ISO)</label>
-              <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="eng" />
-            </div>
-            <div style={{ flex: '0 0 80px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Limit</label>
-              <input type="number" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px', backgroundColor: 'var(--card-bg)' }} value={searchLimit} onChange={(e) => setSearchLimit(Number(e.target.value))} min="1" max="200" />
-            </div>
-            <button type="submit" className="btn-primary" disabled={isSearching || (!title && !author && !subject && !language)} style={{ height: '42px', flex: '0 0 auto' }}>
-              {isSearching ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={18} />}
-              Search
-            </button>
-          </form>
+            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              {!advancedMode ? (
+                <div style={{ flex: '1 1 300px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>General Search</label>
+                  <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} placeholder="Search by anything..." value={q} onChange={(e) => setQ(e.target.value)} />
+                </div>
+              ) : (
+                <>
+                  <div style={{ flex: '1 1 150px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Title</label>
+                    <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={title} onChange={(e) => setTitle(e.target.value)} />
+                  </div>
+                  <div style={{ flex: '1 1 150px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Author</label>
+                    <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={author} onChange={(e) => setAuthor(e.target.value)} />
+                  </div>
+                  <div style={{ flex: '1 1 150px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Subject</label>
+                    <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={subject} onChange={(e) => setSubject(e.target.value)} />
+                  </div>
+                  <div style={{ flex: '1 1 100px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Language (ISO)</label>
+                    <input type="text" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px' }} value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="eng" />
+                  </div>
+                </>
+              )}
+              
+              <div style={{ flex: '0 0 80px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Limit</label>
+                <input type="number" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px', backgroundColor: 'var(--card-bg)' }} value={searchLimit} onChange={(e) => setSearchLimit(Number(e.target.value))} min="1" max="200" />
+              </div>
+              <button type="submit" className="btn-primary" disabled={isSearching || (!q && !title && !author && !subject && !language)} style={{ height: '42px', flex: '0 0 auto' }}>
+                {isSearching ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={18} />}
+                Search
+              </button>
+            </form>
+          </div>
         ) : (
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <select 
@@ -288,6 +423,7 @@ export default function BookSearch() {
               <option value="title">Title</option>
               <option value="author">Author</option>
               <option value="language">Language Code</option>
+              <option value="subject">Subject</option>
             </select>
             <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
               <Search size={18} color="var(--text-secondary)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -308,7 +444,11 @@ export default function BookSearch() {
       </div>
 
       {/* Results */}
-      {results.length > 0 && (
+      {isSearching ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
+          <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />
+        </div>
+      ) : results.length > 0 ? (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
             <h2 style={{ fontSize: '20px', margin: 0 }}>Results ({total} found)</h2>
@@ -423,7 +563,13 @@ export default function BookSearch() {
             </div>
           )}
         </div>
-      )}
+      ) : hasSearched ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <Search size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>No records found</h3>
+          <p style={{ margin: 0, fontSize: '15px' }}>Try adjusting your search words or filtering by a different criteria.</p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 const openLibraryService = require("./openLibrary/openLibraryService");
 
-const getBooksFromOpenLibrary = async (title, author, subject, language, limit, offset) => {
-    return await openLibraryService.searchBooks(title, author, subject, language, limit, offset);
+const getBooksFromOpenLibrary = async (q, title, author, subject, language, limit, offset) => {
+    return await openLibraryService.searchBooks(q, title, author, subject, language, limit, offset);
 };
 
 const getBookWorkFromOpenLibrary = async (workKey) => {

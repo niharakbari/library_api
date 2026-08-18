@@ -1,7 +1,7 @@
 const db = require("../config/database");
 
-const createItem = async (jobId, { workKey, title, languages, status, bookId = null, errorMessage = null }, connection) => {
-    const [result] = await db.query(
+const createItem = async (jobId, { workKey, title, languages, status, bookId = null, errorMessage = null }, connection = db) => {
+    const [result] = await connection.query(
         `INSERT INTO import_job_items 
             (import_job_id, open_library_work_key, title, languages, status, book_id, error_message)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -10,8 +10,8 @@ const createItem = async (jobId, { workKey, title, languages, status, bookId = n
     return result.insertId;
 };
 
-const updateItemStatus = async (itemId, { status, bookId = null, errorMessage = null, title = null }) => {
-    await db.query(
+const updateItemStatus = async (itemId, { status, bookId = null, errorMessage = null, title = null }, connection = db) => {
+    await connection.query(
         `UPDATE import_job_items 
          SET status = ?, 
              book_id = COALESCE(?, book_id), 

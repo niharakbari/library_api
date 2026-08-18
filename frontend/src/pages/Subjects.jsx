@@ -65,7 +65,7 @@ export default function Subjects() {
             {filteredSubjects.map((subject) => (
               <div 
                 key={subject.id} 
-                onClick={() => navigate(`/search?subject=${encodeURIComponent(subject.name)}`)}
+                onClick={() => navigate(`/search?mode=local&type=subject&q=${encodeURIComponent(subject.name)}`)}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', 
                   backgroundColor: 'var(--bg)', borderRadius: '8px', cursor: 'pointer',
