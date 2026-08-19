@@ -55,15 +55,16 @@ export default function ImportJobs() {
               <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Query</th>
               <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Status</th>
               <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Progress</th>
-              <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Duplicates</th>
+              <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Updated</th>
+              <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Dupes</th>
               <th style={{ padding: '16px 24px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading && jobs.length === 0 ? (
-              <tr><td colSpan="5" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</td></tr>
+              <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</td></tr>
             ) : jobs.length === 0 ? (
-              <tr><td colSpan="5" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>No jobs found.</td></tr>
+              <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>No jobs found.</td></tr>
             ) : (
               jobs.map(job => {
                 const percent = job.total_records > 0 ? Math.round((job.processed_records / job.total_records) * 100) : 0;
@@ -94,6 +95,9 @@ export default function ImportJobs() {
                         </div>
                         <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '40px' }}>{percent}%</span>
                       </div>
+                    </td>
+                    <td style={{ padding: '16px 24px', fontSize: '14px', color: job.updated_records > 0 ? 'var(--primary)' : 'var(--text-secondary)' }}>
+                      {job.updated_records || 0}
                     </td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', color: job.duplicate_records > 0 ? 'var(--error)' : 'var(--text-secondary)' }}>
                       {job.duplicate_records || 0}

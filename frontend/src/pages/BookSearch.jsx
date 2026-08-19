@@ -38,6 +38,10 @@ export default function BookSearch() {
   const [selectedWorks, setSelectedWorks] = useState(new Set());
   const [activeJobId, setActiveJobId] = useState(null);
   const [activeJobData, setActiveJobData] = useState(null);
+  
+  // Duplicate Handling Modal State
+  const [showDuplicatePrompt, setShowDuplicatePrompt] = useState(false);
+  const [pendingImportAction, setPendingImportAction] = useState(null);
 
   // Auto-search on mount if query params exist
   useEffect(() => {
@@ -230,6 +234,7 @@ export default function BookSearch() {
   const handleImportSelected = async () => {
     if (selectedWorks.size === 0) return;
     setIsBatchImporting(true);
+    setShowDuplicatePrompt(false);
     
     // Construct the array of works to send
     const worksToImport = results
@@ -258,9 +263,16 @@ export default function BookSearch() {
     }
   };
 
+  const initiateBatchImport = () => {
+    if (!q && !title && !author && !subject && !language) return;
+    setPendingImportAction('batch');
+    setShowDuplicatePrompt(true);
+  };
+
   const handleBatchImport = async () => {
     if (!q && !title && !author && !subject && !language) return;
     setIsBatchImporting(true);
+    setShowDuplicatePrompt(false);
     try {
       const response = await axios.post('/api/books/import/batch', { q, title, author, subject, language, limit: batchLimit, offset: 0 });
       if (response.data.success) {
@@ -275,6 +287,12 @@ export default function BookSearch() {
     } finally {
       setIsBatchImporting(false);
     }
+  };
+
+  const initiateImportSelected = () => {
+    if (selectedWorks.size === 0) return;
+    setPendingImportAction('selected');
+    setShowDuplicatePrompt(true);
   };
 
   return (
@@ -322,6 +340,54 @@ export default function BookSearch() {
           border: `1px solid ${message.type === 'error' ? '#FFCDCD' : '#C8E6C9'}`
         }}>
           {message.text}
+        </div>
+      )}
+
+      {showDuplicatePrompt && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div className="card" style={{ padding: '32px', width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>Duplicate Handling</h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              How would you like to handle books from this import that already exist in your local library?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button 
+                className="btn-primary" 
+                style={{ width: '100%', justifyContent: 'center', height: '44px' }}
+                onClick={() => {
+                  if (pendingImportAction === 'batch') handleBatchImport();
+                  else if (pendingImportAction === 'selected') handleImportSelected();
+                }}
+              >
+                Update All (Default)
+              </button>
+              <button 
+                className="btn-secondary" 
+                style={{ width: '100%', justifyContent: 'center', height: '44px' }}
+                onClick={() => alert('Backend Limitation: "Skip All" is not currently supported by the batch import API. The backend automatically updates duplicates.')}
+              >
+                Skip All
+              </button>
+              <button 
+                className="btn-secondary" 
+                style={{ width: '100%', justifyContent: 'center', height: '44px' }}
+                onClick={() => alert('Backend Limitation: "Review Duplicates" is not supported because the backend API does not provide duplicate preview data before importing.')}
+              >
+                Review Duplicates
+              </button>
+              <button 
+                onClick={() => setShowDuplicatePrompt(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginTop: '12px', fontSize: '15px', textDecoration: 'underline' }}
+              >
+                Cancel Import
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -460,7 +526,7 @@ export default function BookSearch() {
                 </button>
                 <button 
                   className="btn-primary" 
-                  onClick={handleImportSelected} 
+                  onClick={initiateImportSelected} 
                   disabled={selectedWorks.size === 0 || isBatchImporting}
                 >
                   {isBatchImporting && selectedWorks.size > 0 ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={18} />}
@@ -476,7 +542,7 @@ export default function BookSearch() {
                     min="1" 
                     max="1000"
                   />
-                  <button className="btn-secondary" onClick={handleBatchImport} disabled={isBatchImporting}>
+                  <button className="btn-secondary" onClick={initiateBatchImport} disabled={isBatchImporting}>
                     {isBatchImporting && selectedWorks.size === 0 ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={18} />}
                     Batch Import Top
                   </button>
@@ -484,6 +550,33 @@ export default function BookSearch() {
               </div>
             )}
           </div>
+
+          {searchMode === 'openlibrary' && (
+            <div className="card" style={{ padding: '16px', marginBottom: '20px', backgroundColor: 'var(--bg)', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>Duplicate Handling:</span>
+              <button 
+                className="btn-secondary" 
+                style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                onClick={() => {}}
+              >
+                Update All (Default)
+              </button>
+              <button 
+                className="btn-secondary" 
+                style={{ backgroundColor: 'var(--card-bg)' }}
+                onClick={() => alert('Backend Limitation: "Skip All" is not currently supported by the batch import API. The backend automatically updates duplicates.')}
+              >
+                Skip All
+              </button>
+              <button 
+                className="btn-secondary" 
+                style={{ backgroundColor: 'var(--card-bg)' }}
+                onClick={() => alert('Backend Limitation: "Review Duplicates" is not supported because the backend API does not provide duplicate preview data before importing.')}
+              >
+                Review Duplicates
+              </button>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
             {results.map((work) => {

@@ -10,6 +10,7 @@ import JobLogs from './pages/JobLogs';
 import Authors from './pages/Authors';
 import Subjects from './pages/Subjects';
 import Languages from './pages/Languages';
+import DataQuality from './pages/DataQuality';
 import './index.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -37,6 +38,7 @@ function App() {
           <Route path="/authors" element={<Authors />} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/languages" element={<Languages />} />
+          <Route path="/data-quality" element={<DataQuality />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,5 +1,6 @@
 const db = require("../config/database");
 
+
 const searchAuthorByName = async (authorName) => {
     const [rows] = await db.query(
         `

@@ -28,14 +28,23 @@ const importBook = async (workKey, languages = [], connection = db) => {
         };
     }
 
+    // Safely extract a valid positive numeric cover ID from work.covers array
+    let safeCoverId = null;
+    if (Array.isArray(work.covers) && work.covers.length > 0) {
+        const firstCover = Number(work.covers[0]);
+        if (!isNaN(firstCover) && firstCover > 0) {
+            safeCoverId = firstCover;
+        }
+    }
+
     const existingBook = await bookModel.findByOpenLibraryWorkKey(cleanWorkKey, connection);
 
     if (existingBook) {
         await bookModel.update(existingBook.id, {
             title: work.title,
             firstPublishYear: work.first_publish_year || null,
-            coverEditionKey: work.covers?.[0] || null,
-            coverId: work.covers?.[0] || null,
+            coverEditionKey: null,
+            coverId: safeCoverId,
         }, connection);
 
         // Continue updating authors, subjects, and languages so they are fresh
@@ -55,8 +64,8 @@ const importBook = async (workKey, languages = [], connection = db) => {
         workKey: cleanWorkKey,
         title: work.title,
         firstPublishYear: work.first_publish_year || null,
-        coverEditionKey: work.covers?.[0] || null,
-        coverId: work.covers?.[0] || null,
+        coverEditionKey: null,
+        coverId: safeCoverId,
     },
     connection
     );
