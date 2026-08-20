@@ -41,7 +41,12 @@ export default function BookSearch() {
   
   // Duplicate Handling Modal State
   const [showDuplicatePrompt, setShowDuplicatePrompt] = useState(false);
-  const [pendingImportAction, setPendingImportAction] = useState(null);
+  const [duplicateKeys, setDuplicateKeys] = useState([]);
+  const [newKeys, setNewKeys] = useState([]);
+  const [reviewingDuplicates, setReviewingDuplicates] = useState(false);
+  const [selectedDuplicates, setSelectedDuplicates] = useState(new Set());
+  const [pendingWorksList, setPendingWorksList] = useState([]);
+  const [isBatchMode, setIsBatchMode] = useState(false);
 
   // Auto-search on mount if query params exist
   useEffect(() => {
@@ -231,14 +236,55 @@ export default function BookSearch() {
     }
   };
 
-  const handleImportSelected = async () => {
+  const initiateImportSelected = async () => {
     if (selectedWorks.size === 0) return;
-    setIsBatchImporting(true);
-    setShowDuplicatePrompt(false);
+    setIsBatchImporting(true); // Show loader on button while checking
     
-    // Construct the array of works to send
-    const worksToImport = results
-      .filter(w => selectedWorks.has(w.key))
+    const workKeys = Array.from(selectedWorks).map(k => k.replace('/works/', ''));
+    
+    try {
+      const res = await axios.post('/api/books/existing-works', { workKeys });
+      if (res.data.success) {
+        const dupesArray = res.data.data.existingWork || [];
+        const dupes = dupesArray.map(d => d.open_library_work_key);
+        const newSet = workKeys.filter(k => !dupes.includes(k));
+        
+        if (dupes.length === 0) {
+          // No duplicates, bypass prompt
+          importPasser(workKeys, results);
+        } else {
+          // Present duplicate UI
+          setDuplicateKeys(dupes);
+          setNewKeys(newSet);
+          setPendingWorksList(results);
+          setIsBatchMode(false);
+          setReviewingDuplicates(false);
+          setSelectedDuplicates(new Set());
+          setShowDuplicatePrompt(true);
+          setIsBatchImporting(false); // Hide button loader, show modal
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Failed to pre-check duplicates.' });
+      setIsBatchImporting(false);
+    }
+  };
+
+  const importPasser = async (finalCleanKeys, worksList = results) => {
+    setShowDuplicatePrompt(false);
+    setReviewingDuplicates(false);
+    
+    if (finalCleanKeys.length === 0) {
+      setMessage({ type: 'success', text: 'All selected books are already in your library. Nothing to import.' });
+      return;
+    }
+    
+    setIsBatchImporting(true);
+    
+    const keysSet = new Set(finalCleanKeys);
+    const worksToImport = worksList
+      .filter(w => keysSet.has(w.key.replace('/works/', '')))
       .map(w => ({
         key: w.key,
         title: w.title,
@@ -252,47 +298,112 @@ export default function BookSearch() {
         setSelectedWorks(new Set());
         if (response.data.data?.jobId) {
           setActiveJobId(response.data.data.jobId);
-          setActiveJobData(null); // Reset job data for the new job
+          setActiveJobData(null); 
         }
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to start import job for selected works.' });
-      console.error("Failed to import selected", error);
+      setMessage({ type: 'error', text: 'Failed to start import job.' });
+      console.error("Failed to import", error);
     } finally {
       setIsBatchImporting(false);
     }
   };
 
-  const initiateBatchImport = () => {
-    if (!q && !title && !author && !subject && !language) return;
-    setPendingImportAction('batch');
-    setShowDuplicatePrompt(true);
-  };
+  const handleUpdateAll = () => importPasser([...newKeys, ...duplicateKeys], pendingWorksList);
+  const handleSkipAll = () => importPasser(newKeys, pendingWorksList);
+  const handleReviewDuplicates = () => setReviewingDuplicates(true);
+  const handleImportReviewed = () => importPasser([...newKeys, ...Array.from(selectedDuplicates)], pendingWorksList);
 
   const handleBatchImport = async () => {
     if (!q && !title && !author && !subject && !language) return;
     setIsBatchImporting(true);
     setShowDuplicatePrompt(false);
+    
     try {
-      const response = await axios.post('/api/books/import/batch', { q, title, author, subject, language, limit: batchLimit, offset: 0 });
-      if (response.data.success) {
-        setMessage({ type: 'success', text: response.data.message || 'Batch import job started successfully. Waiting for completion...' });
-        if (response.data.data?.jobId) {
-          setActiveJobId(response.data.data.jobId);
-          setActiveJobData(null); // Reset job data for the new job
+      // 1. Fetch batchLimit results from OpenLibrary search API directly
+      const searchRes = await axios.get('/api/books/search', {
+        params: { q, title, author, subject, language, limit: batchLimit, offset: 0 }
+      });
+      
+      const fetchedResults = searchRes.data?.data?.results || [];
+      if (fetchedResults.length === 0) {
+        setMessage({ type: 'error', text: 'No books found to import.' });
+        setIsBatchImporting(false);
+        return;
+      }
+      
+      const workKeys = fetchedResults.map(w => w.key.replace('/works/', ''));
+      
+      // 2. Check for duplicates in the fetched batch
+      const dupeRes = await axios.post('/api/books/existing-works', { workKeys });
+      if (dupeRes.data.success) {
+        const dupesArray = dupeRes.data.data.existingWork || [];
+        const dupes = dupesArray.map(d => d.open_library_work_key);
+        const newSet = workKeys.filter(k => !dupes.includes(k));
+        
+        if (dupes.length === 0) {
+          importPasser(workKeys, fetchedResults);
+        } else {
+          setDuplicateKeys(dupes);
+          setNewKeys(newSet);
+          setPendingWorksList(fetchedResults);
+          setIsBatchMode(true);
+          setReviewingDuplicates(false);
+          setSelectedDuplicates(new Set());
+          setShowDuplicatePrompt(true);
+          setIsBatchImporting(false);
         }
       }
     } catch (error) {
+      console.error(error);
       setMessage({ type: 'error', text: 'Failed to start batch import.' });
-    } finally {
       setIsBatchImporting(false);
     }
   };
 
-  const initiateImportSelected = () => {
-    if (selectedWorks.size === 0) return;
-    setPendingImportAction('selected');
-    setShowDuplicatePrompt(true);
+  const handleAutoFetchNewBooks = async () => {
+    setShowDuplicatePrompt(false);
+    setIsBatchImporting(true);
+    let accumulatedNewWorks = pendingWorksList.filter(w => newKeys.includes(w.key.replace('/works/', '')));
+    let currentOffset = pendingWorksList.length;
+    
+    try {
+      while (accumulatedNewWorks.length < batchLimit) {
+        const needed = batchLimit - accumulatedNewWorks.length;
+        
+        const searchRes = await axios.get('/api/books/search', {
+          params: { q, title, author, subject, language, limit: needed, offset: currentOffset }
+        });
+        
+        const chunk = searchRes.data?.data?.results || [];
+        if (chunk.length === 0) break;
+        
+        currentOffset += chunk.length;
+        
+        const chunkKeys = chunk.map(w => w.key.replace('/works/', ''));
+        const dupeRes = await axios.post('/api/books/existing-works', { workKeys: chunkKeys });
+        
+        if (dupeRes.data.success) {
+          const dupesArray = dupeRes.data.data.existingWork || [];
+          const dupes = dupesArray.map(d => d.open_library_work_key);
+          const newChunkKeys = chunkKeys.filter(k => !dupes.includes(k));
+          
+          const newChunkWorks = chunk.filter(w => newChunkKeys.includes(w.key.replace('/works/', '')));
+          accumulatedNewWorks = [...accumulatedNewWorks, ...newChunkWorks];
+        } else {
+          break;
+        }
+      }
+      
+      accumulatedNewWorks = accumulatedNewWorks.slice(0, batchLimit);
+      const finalKeys = accumulatedNewWorks.map(w => w.key.replace('/works/', ''));
+      importPasser(finalKeys, accumulatedNewWorks);
+      
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Failed to auto-fetch new books.' });
+      setIsBatchImporting(false);
+    }
   };
 
   return (
@@ -344,49 +455,67 @@ export default function BookSearch() {
       )}
 
       {showDuplicatePrompt && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div className="card" style={{ padding: '32px', width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="card" style={{ padding: '32px', width: '100%', maxWidth: reviewingDuplicates ? '600px' : '400px', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>Duplicate Handling</h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              How would you like to handle books from this import that already exist in your local library?
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button 
-                className="btn-primary" 
-                style={{ width: '100%', justifyContent: 'center', height: '44px' }}
-                onClick={() => {
-                  if (pendingImportAction === 'batch') handleBatchImport();
-                  else if (pendingImportAction === 'selected') handleImportSelected();
-                }}
-              >
-                Update All (Default)
-              </button>
-              <button 
-                className="btn-secondary" 
-                style={{ width: '100%', justifyContent: 'center', height: '44px' }}
-                onClick={() => alert('Backend Limitation: "Skip All" is not currently supported by the batch import API. The backend automatically updates duplicates.')}
-              >
-                Skip All
-              </button>
-              <button 
-                className="btn-secondary" 
-                style={{ width: '100%', justifyContent: 'center', height: '44px' }}
-                onClick={() => alert('Backend Limitation: "Review Duplicates" is not supported because the backend API does not provide duplicate preview data before importing.')}
-              >
-                Review Duplicates
-              </button>
-              <button 
-                onClick={() => setShowDuplicatePrompt(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginTop: '12px', fontSize: '15px', textDecoration: 'underline' }}
-              >
-                Cancel Import
-              </button>
-            </div>
+            
+            {!reviewingDuplicates ? (
+              <>
+                <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {newKeys.length + duplicateKeys.length} books targeted — {newKeys.length} new, <strong style={{ color: 'var(--error)' }}>{duplicateKeys.length} already imported.</strong><br/><br/>
+                  How would you like to handle the books that already exist in your local library?
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', height: '44px' }} onClick={handleUpdateAll}>Import All {newKeys.length + duplicateKeys.length} Books (Update Duplicates)</button>
+                  <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center', height: '44px', color: 'var(--primary)', borderColor: 'var(--primary)' }} onClick={handleSkipAll}>Import New {newKeys.length} Books (Skipping Duplicates)</button>
+                  
+                  {isBatchMode && (
+                    <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center', height: '44px', backgroundColor: 'var(--primary)', color: 'white' }} onClick={handleAutoFetchNewBooks}>
+                      Import New Books Only (Auto-fill to {batchLimit})
+                    </button>
+                  )}
+                  
+                  <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center', height: '44px' }} onClick={handleReviewDuplicates}>Review Duplicates ({duplicateKeys.length})</button>
+                  <button onClick={() => setShowDuplicatePrompt(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginTop: '12px', fontSize: '15px', textDecoration: 'underline' }}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ margin: '0 0 16px 0', fontSize: '15px', color: 'var(--text-secondary)' }}>
+                  Select the existing books you want to update. Unselected books will be skipped.
+                </p>
+                <div style={{ overflowY: 'auto', flex: 1, marginBottom: '24px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                  {duplicateKeys.map(key => {
+                    const work = results.find(w => w.key.includes(key));
+                    if (!work) return null;
+                    return (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedDuplicates.has(key)} 
+                          onChange={(e) => {
+                            const newSet = new Set(selectedDuplicates);
+                            if (e.target.checked) newSet.add(key); else newSet.delete(key);
+                            setSelectedDuplicates(newSet);
+                          }}
+                          style={{ marginRight: '16px', width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: '15px' }}>{work.title}</div>
+                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Key: {key}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setReviewingDuplicates(false)}>Back</button>
+                  <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleImportReviewed}>
+                    Import {newKeys.length + selectedDuplicates.size} Books
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -469,10 +598,7 @@ export default function BookSearch() {
                 </>
               )}
               
-              <div style={{ flex: '0 0 80px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>Limit</label>
-                <input type="number" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '15px', backgroundColor: 'var(--card-bg)' }} value={searchLimit} onChange={(e) => setSearchLimit(Number(e.target.value))} min="1" max="200" />
-              </div>
+
               <button type="submit" className="btn-primary" disabled={isSearching || (!q && !title && !author && !subject && !language)} style={{ height: '42px', flex: '0 0 auto' }}>
                 {isSearching ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={18} />}
                 Search
@@ -542,7 +668,7 @@ export default function BookSearch() {
                     min="1" 
                     max="1000"
                   />
-                  <button className="btn-secondary" onClick={initiateBatchImport} disabled={isBatchImporting}>
+                  <button className="btn-secondary" onClick={handleBatchImport} disabled={isBatchImporting}>
                     {isBatchImporting && selectedWorks.size === 0 ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={18} />}
                     Batch Import Top
                   </button>
@@ -551,32 +677,7 @@ export default function BookSearch() {
             )}
           </div>
 
-          {searchMode === 'openlibrary' && (
-            <div className="card" style={{ padding: '16px', marginBottom: '20px', backgroundColor: 'var(--bg)', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>Duplicate Handling:</span>
-              <button 
-                className="btn-secondary" 
-                style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                onClick={() => {}}
-              >
-                Update All (Default)
-              </button>
-              <button 
-                className="btn-secondary" 
-                style={{ backgroundColor: 'var(--card-bg)' }}
-                onClick={() => alert('Backend Limitation: "Skip All" is not currently supported by the batch import API. The backend automatically updates duplicates.')}
-              >
-                Skip All
-              </button>
-              <button 
-                className="btn-secondary" 
-                style={{ backgroundColor: 'var(--card-bg)' }}
-                onClick={() => alert('Backend Limitation: "Review Duplicates" is not supported because the backend API does not provide duplicate preview data before importing.')}
-              >
-                Review Duplicates
-              </button>
-            </div>
-          )}
+
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
             {results.map((work) => {

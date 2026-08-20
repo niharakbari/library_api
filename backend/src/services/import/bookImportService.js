@@ -71,7 +71,6 @@ const importBook = async (workKey, languages = [], connection = db) => {
     );
 
     
-
     // search author details...and adding authors one by one
     const authors = work.authors || [];
 

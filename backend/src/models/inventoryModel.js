@@ -118,6 +118,37 @@ const searchByYear = async (year) => {
 };
 
 
+const existingWork = async (workKeys) => {
+
+    const placeholders = workKeys.map(() => '?').join(',');
+
+    const [results] = await db.query(
+        `
+        SELECT b.open_library_work_key
+        FROM books b
+        WHERE b.open_library_work_key IN (${placeholders})
+        `,
+        workKeys
+    );
+
+    return results;
+};
+
+
+const updateBookAuthor = async (bookId, authorId) => {
+
+    await db.query(
+        `
+        UPDATE book_authors
+        SET author_id = ? 
+        WHERE 
+        book_id = ?
+        `,
+        [authorId, bookId]
+    )
+
+}
+
 
 
 module.exports = {
@@ -125,5 +156,7 @@ module.exports = {
     searchLanguageByName,
     searchTitleByName,
     searchSubjectByName,
-    searchByYear
+    searchByYear,
+    existingWork,
+    updateBookAuthor
 }

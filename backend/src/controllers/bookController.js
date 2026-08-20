@@ -4,7 +4,8 @@ const languageModel = require('../models/languageModel');
 const subjectModel = require('../models/subjectModel');
 const authorModel = require('../models/authorModel');
 
-
+const inventoryModel = require(`../models/inventoryModel`)
+const bookAuthorModel = require('../models/bookAuthorModel');
 
 
 const searchBooks = async (req, res, next) => {
@@ -213,6 +214,76 @@ const getAuthors = async (req, res, next) => {
     }
 };
 
+
+
+const checkExistingWorks = async (req, res, next) => {
+    try {
+
+        const { workKeys } = req.body;
+
+        if (!Array.isArray(workKeys) || workKeys.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "workKeys must be a non-empty array"
+            });
+        }
+
+        const existingWork = await inventoryModel.existingWork(workKeys);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                total_existing_books: existingWork.length,
+                existingWork
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+const updateAuthor = async (req, res, next) => {
+
+    try {
+
+        const { bookId, newAuthor } = req.body;
+
+        if (!bookId || !newAuthor) {
+            return res.status(400).json({
+                success: false,
+                message: "Book id and new author are required"
+            });
+        }
+
+        let authorId = await authorModel.getIdByName(newAuthor);
+
+        if (!authorId) {
+
+            const authorKey = `manual:${Date.now()}`;
+
+            authorId = await authorModel.create({
+                authorKey,
+                name: newAuthor
+            });
+
+        }
+
+        await inventoryModel.updateBookAuthor(bookId, authorId);
+
+        return res.status(200).json({
+            success: true,
+            message: `Updated author with id ${authorId}`
+        });
+
+    } catch (error) {
+        next(error);
+    }
+
+}
+
+
 module.exports = {
     searchBooks,
     getBookWork,
@@ -220,5 +291,7 @@ module.exports = {
     getLocalCatalog,
     getLanguages,
     getSubjects,
-    getAuthors
+    getAuthors,
+    checkExistingWorks,
+    updateAuthor
 }
