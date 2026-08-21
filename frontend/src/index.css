@@ -113,3 +113,145 @@ button {
   color: var(--text-secondary);
   margin: 0;
 }
+
+/* ============================================
+   RESPONSIVE — mobile-first media queries
+   ============================================ */
+
+/* --- viewport meta is set in index.html --- */
+
+/* -- Tablet & below: 768px -- */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 100px 16px 40px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+  }
+}
+
+/* -- Phone: 480px -- */
+@media (max-width: 480px) {
+  .page-container {
+    padding: 90px 12px 32px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+}
+
+/* -- Small phone cards -- */
+@media (max-width: 640px) {
+  .card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* -- Responsive table helper -- */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* -- Hide nav text on tiny screens (icon only) -- */
+@media (max-width: 400px) {
+  .nav-link span {
+    display: none;
+  }
+
+  .nav-brand span {
+    display: none;
+  }
+}
+
+/* ============================================
+   PAGE-SPECIFIC RESPONSIVE RULES
+   ============================================ */
+
+/* Dashboard — overview two-column cards */
+@media (max-width: 860px) {
+  .dashboard-overview-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* MyLibrary / BookSearch — filter form */
+@media (max-width: 640px) {
+  /* Filter action row: stack buttons vertically */
+  .filter-actions-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  /* Pagination row on mobile */
+  .pagination-row {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+}
+
+/* BookDetails hero section */
+@media (max-width: 768px) {
+  .book-detail-hero {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 24px !important;
+    text-align: center;
+  }
+}
+
+/* ImportJobs table — horizontal scroll */
+@media (max-width: 768px) {
+  .jobs-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Login page */
+@media (max-width: 480px) {
+  .login-wrapper {
+    padding: 12px;
+  }
+
+  .login-card {
+    padding: 24px 16px !important;
+    border-radius: 16px !important;
+  }
+}
+
+/* Generic: any flex row with gap that should wrap on mobile */
+@media (max-width: 640px) {
+  .flex-wrap-mobile {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* Inputs fill full width on mobile */
+@media (max-width: 480px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
+}

@@ -136,18 +136,31 @@ const existingWork = async (workKeys) => {
 
 
 const updateBookAuthor = async (bookId, authorId) => {
+    // Delete existing authors for the book to prevent duplicates or composite key errors
+    await db.query(
+        `DELETE FROM book_authors WHERE book_id = ?`,
+        [bookId]
+    );
+
+    // Insert the new author mapping
+    await db.query(
+        `INSERT INTO book_authors (book_id, author_id) VALUES (?, ?)`,
+        [bookId, authorId]
+    );
+};
+
+const updatePublishYear = async (bookId, publishYear) => {
 
     await db.query(
         `
-        UPDATE book_authors
-        SET author_id = ? 
-        WHERE 
-        book_id = ?
+        UPDATE books 
+        SET first_publish_year = ?
+        WHERE id = ?
         `,
-        [authorId, bookId]
+        [publishYear, bookId]
     )
 
-}
+};
 
 
 
@@ -158,5 +171,6 @@ module.exports = {
     searchSubjectByName,
     searchByYear,
     existingWork,
-    updateBookAuthor
+    updateBookAuthor,
+    updatePublishYear
 }

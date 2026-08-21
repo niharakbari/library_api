@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Library, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Library, Loader2, ChevronLeft, ChevronRight, Edit2, Check, X, Star } from 'lucide-react';
 
 export default function MyLibrary() {
   const navigate = useNavigate();
@@ -11,6 +11,13 @@ export default function MyLibrary() {
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState(null);
   const limit = 20;
+
+  // Edit State
+  const [editingAuthor, setEditingAuthor] = useState(null);
+  const [editingYear, setEditingYear] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const [savingEdit, setSavingEdit] = useState(null);
+  const [editMessage, setEditMessage] = useState({});
 
   const [filters, setFilters] = useState({
     q: '',
@@ -95,6 +102,54 @@ export default function MyLibrary() {
     }
   };
 
+  const handleSaveAuthor = async (bookId) => {
+    if (!bookId) {
+      setEditMessage({ id: bookId, type: 'error', text: 'Backend response must provide "id" to edit.' });
+      return;
+    }
+    setSavingEdit(`author-${bookId}`);
+    try {
+      const response = await axios.post(`/api/books/author/${bookId}`, { newAuthor: editValue });
+      if (response.data.success) {
+        setResults(prev => prev.map(w => w.id === bookId ? { ...w, author_name: [editValue] } : w));
+        setEditMessage({ id: bookId, type: 'success', text: 'Author updated' });
+        setEditingAuthor(null);
+      }
+    } catch (err) {
+      setEditMessage({ id: bookId, type: 'error', text: 'Failed to update author' });
+    } finally {
+      setSavingEdit(null);
+      setTimeout(() => setEditMessage({}), 3000);
+    }
+  };
+
+  const handleSaveYear = async (bookId) => {
+    // ...existing handleSaveYear code...
+    if (!bookId) {
+      setEditMessage({ id: bookId, type: 'error', text: 'Backend response must provide "id" to edit.' });
+      return;
+    }
+    const yearNum = parseInt(editValue, 10);
+    if (isNaN(yearNum)) {
+      setEditMessage({ id: bookId, type: 'error', text: 'Invalid year' });
+      return;
+    }
+    setSavingEdit(`year-${bookId}`);
+    try {
+      const response = await axios.post(`/api/books/publishYear/${bookId}`, { publishYear: yearNum });
+      if (response.data.success) {
+        setResults(prev => prev.map(w => w.id === bookId ? { ...w, first_publish_year: yearNum } : w));
+        setEditMessage({ id: bookId, type: 'success', text: 'Year updated' });
+        setEditingYear(null);
+      }
+    } catch (err) {
+      setEditMessage({ id: bookId, type: 'error', text: 'Failed to update year' });
+    } finally {
+      setSavingEdit(null);
+      setTimeout(() => setEditMessage({}), 3000);
+    }
+  };
+
   return (
     <div className="page-container">
       <header className="page-header" style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', marginBottom: '24px' }}>
@@ -134,7 +189,7 @@ export default function MyLibrary() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+          <div className="filter-actions-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <label style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Sort By:</label>
               <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none', backgroundColor: 'var(--bg)', cursor: 'pointer' }}>
@@ -199,16 +254,86 @@ export default function MyLibrary() {
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>No Cover</div>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                  <Link to={`/books/${work.key.replace('/works/', '')}`} style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
-                    {work.title}
-                  </Link>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    {work.author_name?.length > 0 ? work.author_name.join(', ') : 'Unknown Author'}
-                  </p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    Published: {work.first_publish_year || 'Unknown'}
-                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }} onClick={(e) => e.stopPropagation()}>
+                    <Link to={`/books/${work.key.replace('/works/', '')}`} state={{ localBookId: work.id }} style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
+                      {work.title}
+                    </Link>
+                    
+                    {/* Author Edit UI */}
+                    <div style={{ marginBottom: '4px' }}>
+                      {editingAuthor === work.key ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input 
+                            type="text" 
+                            value={editValue} 
+                            onChange={(e) => setEditValue(e.target.value)}
+                            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '13px', flex: 1 }}
+                            autoFocus
+                          />
+                          <button onClick={() => handleSaveAuthor(work.id)} disabled={savingEdit === `author-${work.id}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)' }}>
+                            {savingEdit === `author-${work.id}` ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={16} />}
+                          </button>
+                          <button onClick={() => setEditingAuthor(null)} disabled={savingEdit === `author-${work.id}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                          <span>{work.author_name?.length > 0 ? work.author_name.join(', ') : 'Unknown Author'}</span>
+                          <button 
+                            onClick={(e) => { e.preventDefault(); setEditingAuthor(work.key); setEditingYear(null); setEditValue(work.author_name?.length > 0 ? work.author_name[0] : ''); }} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px' }}
+                            title="Edit Author"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                      {editMessage.id === work.id && editMessage.text.includes('Author') && (
+                        <div style={{ fontSize: '11px', color: editMessage.type === 'error' ? 'var(--error)' : 'var(--success)', marginTop: '2px' }}>{editMessage.text}</div>
+                      )}
+                    </div>
+
+                    {/* Year Edit UI */}
+                    <div style={{ marginBottom: '8px' }}>
+                      {editingYear === work.key ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={editValue} 
+                            onChange={(e) => setEditValue(e.target.value)}
+                            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '13px', width: '80px' }}
+                            autoFocus
+                          />
+                          <button onClick={() => handleSaveYear(work.id)} disabled={savingEdit === `year-${work.id}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)' }}>
+                            {savingEdit === `year-${work.id}` ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={16} />}
+                          </button>
+                          <button onClick={() => setEditingYear(null)} disabled={savingEdit === `year-${work.id}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          <span>Published: {work.first_publish_year || 'Unknown'}</span>
+                          <button 
+                            onClick={(e) => { e.preventDefault(); setEditingYear(work.key); setEditingAuthor(null); setEditValue(work.first_publish_year || ''); }} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px' }}
+                            title="Edit Year"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                      {editMessage.id === work.id && editMessage.text.includes('Year') && (
+                        <div style={{ fontSize: '11px', color: editMessage.type === 'error' ? 'var(--error)' : 'var(--success)', marginTop: '2px' }}>{editMessage.text}</div>
+                      )}
+                    {/* Review Badge */}
+                    <div style={{ marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: work.is_reviewed ? 'var(--success)' : 'var(--text-secondary)' }}>
+                        {work.is_reviewed ? '✓ Reviewed' : 'Not Reviewed'}
+                      </span>
+                    </div>
+                  </div>
                   
                   {(work.subject?.length > 0 || work.language?.length > 0) && (
                     <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -230,7 +355,7 @@ export default function MyLibrary() {
           </div>
 
           {total > limit && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '32px' }}>
+            <div className="pagination-row" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '32px' }}>
               <button 
                 className="btn-secondary" 
                 onClick={handlePrevPage} 

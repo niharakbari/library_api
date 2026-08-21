@@ -406,3 +406,12 @@ CREATE TABLE import_job_items (
 ALTER TABLE import_jobs
 ADD COLUMN skipped_records INT UNSIGNED NOT NULL DEFAULT 0
 AFTER failed_records;
+
+ALTER TABLE books
+ADD COLUMN is_reviewed BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE book_reviews
+DROP COLUMN status;
+
+ALTER TABLE book_reviews
+ADD UNIQUE KEY uq_book_reviews_book_user (book_id, user_id);

@@ -5,22 +5,29 @@ const { protect } = require('../middlewares/authMiddleware');
 
 const bookController = require('../controllers/bookController');
 
-router.get("/search",  bookController.searchBooks);
+router.get("/search", protect, bookController.searchBooks);
 
-router.get("/work/:workKey",  bookController.getBookWork);
+router.get("/work/:workKey", protect, bookController.getBookWork);
 
-router.get("/work/:workKey/editions",  bookController.getBookEditions);
+router.get("/work/:workKey/editions", protect, bookController.getBookEditions);
 
-router.post("/existing-works", bookController.checkExistingWorks);
+router.post("/existing-works", protect, bookController.checkExistingWorks);
 
-router.get("/catalog",  bookController.getLocalCatalog);
+router.get("/catalog", protect, bookController.getLocalCatalog);
 
-router.get("/languages",  bookController.getLanguages);
+router.get("/languages", protect, bookController.getLanguages);
 
-router.get("/subjects",  bookController.getSubjects);
+router.get("/subjects", protect, bookController.getSubjects);
 
-router.get("/authors",  bookController.getAuthors);
-router.post("/author", bookController.updateAuthor);
+router.get("/authors", protect, bookController.getAuthors);
+router.post("/author/:id", protect, bookController.updateAuthor);
 
+
+router.post("/publishYear/:id", protect, bookController.updatePublishYear);
+
+// Review routes
+router.get("/:bookId/review", protect, bookController.getReview);
+router.post("/:bookId/review", protect, bookController.createReview);
+router.patch("/:bookId/review", protect, bookController.updateReview);
 
 module.exports = router;

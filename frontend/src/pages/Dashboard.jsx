@@ -115,7 +115,7 @@ export default function Dashboard() {
       {/* 2. MIDDLE - Library Overview */}
       <section style={{ marginBottom: '48px' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '20px', color: 'var(--text-secondary)' }}>Library Overview</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+        <div className="dashboard-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
           
           {/* Recent Books */}
           <div className="card" style={{ padding: '0' }}>

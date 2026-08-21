@@ -3,6 +3,7 @@ const bookService = require("../services/bookService");
 const languageModel = require('../models/languageModel');
 const subjectModel = require('../models/subjectModel');
 const authorModel = require('../models/authorModel');
+const bookReviewsModel = require('../models/bookReviewsModel');
 
 const inventoryModel = require(`../models/inventoryModel`)
 const bookAuthorModel = require('../models/bookAuthorModel');
@@ -248,7 +249,9 @@ const updateAuthor = async (req, res, next) => {
 
     try {
 
-        const { bookId, newAuthor } = req.body;
+        const bookId = req.params.id;
+
+        const {  newAuthor } = req.body;
 
         if (!bookId || !newAuthor) {
             return res.status(400).json({
@@ -281,8 +284,89 @@ const updateAuthor = async (req, res, next) => {
         next(error);
     }
 
-}
+};
 
+const updatePublishYear = async (req, res, next) => {
+    try {
+        const bookId = req.params.id;
+        const { publishYear } = req.body;
+
+        if (!bookId || !publishYear) {
+            return res.status(400).json({
+                success: false,
+                message: "Book id and new publish year are required"
+            });
+        }
+
+        await inventoryModel.updatePublishYear(bookId, publishYear);
+
+        return res.status(200).json({
+            success: true,
+            message: ` Publish year of book ${bookId} updated `
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+
+const getReview = async (req, res, next) => {
+    try {
+        const { bookId } = req.params;
+        const userId = req.user.id;
+
+        const review = await bookReviewsModel.getReviewByBookAndUser(bookId, userId);
+        
+        return res.status(200).json({
+            success: true,
+            data: review || null
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const createReview = async (req, res, next) => {
+    try {
+        const { bookId } = req.params;
+        const userId = req.user.id;
+        const { rating, reviewText } = req.body;
+
+        const existing = await bookReviewsModel.getReviewByBookAndUser(bookId, userId);
+        if (existing) {
+            return res.status(400).json({ success: false, message: "Review already exists for this book." });
+        }
+
+        await bookReviewsModel.createReview(bookId, userId, rating, reviewText);
+        await bookReviewsModel.markBookAsReviewed(bookId);
+
+        return res.status(201).json({ success: true, message: "Review created successfully." });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+
+const updateReview = async (req, res, next) => {
+    try {
+        const { bookId } = req.params;
+        const userId = req.user.id;
+        const { rating, reviewText } = req.body;
+
+        const existing = await bookReviewsModel.getReviewByBookAndUser(bookId, userId);
+        if (!existing) {
+            return res.status(404).json({ success: false, message: "Review not found." });
+        }
+
+        await bookReviewsModel.updateReview(bookId, userId, rating, reviewText);
+
+        return res.status(200).json({ success: true, message: "Review updated successfully." });
+    } catch (error) {
+        next(error);
+    }
+};
 
 module.exports = {
     searchBooks,
@@ -293,5 +377,9 @@ module.exports = {
     getSubjects,
     getAuthors,
     checkExistingWorks,
-    updateAuthor
+    updateAuthor,
+    updatePublishYear,
+    getReview,
+    createReview,
+    updateReview
 }

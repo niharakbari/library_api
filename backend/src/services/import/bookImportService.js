@@ -9,6 +9,9 @@ const bookSubjectsModel = require('../../models/bookSubjectsModel');
 
 const languageModel = require("../../models/languageModel");
 const bookLanguagesModel = require("../../models/bookLanguageModel");
+
+const bookReviewModel = require (`../../models/bookReviewsModel`);
+
 const db = require("../../config/database");
 
 const importBook = async (workKey, languages = [], connection = db) => {
@@ -162,8 +165,6 @@ const importBook = async (workKey, languages = [], connection = db) => {
             connection
         );
     }
-
-
 
     return {
         status: "imported",

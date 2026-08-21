@@ -73,3 +73,77 @@
 .main-content {
   min-height: 100vh;
 }
+
+/* ============================================
+   RESPONSIVE NAV
+   ============================================ */
+
+/* Tablet: tighten spacing */
+@media (max-width: 900px) {
+  .floating-nav {
+    gap: 16px;
+    padding: 8px 12px;
+  }
+
+  .nav-link {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+}
+
+/* Large phone: hide link labels, keep icons */
+@media (max-width: 640px) {
+  .floating-nav {
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 100px;
+    /* let it grow as wide as needed, constrained by viewport */
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: calc(100% - 24px);
+    max-width: 500px;
+    /* re-center */
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+  }
+
+  .nav-links {
+    gap: 2px;
+  }
+
+  .nav-link span {
+    display: none;
+  }
+
+  .nav-link {
+    padding: 8px 10px;
+  }
+
+  .nav-brand span {
+    display: none;
+  }
+
+  .nav-brand {
+    padding-right: 8px;
+  }
+}
+
+/* Small phone: ultra compact */
+@media (max-width: 380px) {
+  .floating-nav {
+    top: 12px;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .nav-link {
+    padding: 6px 8px;
+  }
+
+  .nav-logout {
+    width: 30px;
+    height: 30px;
+  }
+}

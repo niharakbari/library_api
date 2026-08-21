@@ -25,7 +25,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+  path="/"
+    element={
+      localStorage.getItem('accessToken')
+        ? <Navigate to="/dashboard" replace />
+        : <Navigate to="/login" replace />
+    }
+  />
         <Route path="/login" element={<Login />} />
         
         <Route element={<ProtectedRoute><TopNavLayout /></ProtectedRoute>}>

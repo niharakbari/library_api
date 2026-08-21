@@ -8,5 +8,8 @@ router.get("/language", inventoryController.searchLanguage );
 router.get("/title", inventoryController.searchTitle );
 router.get("/subject", inventoryController.searchSubject );
 
+router.post(`/review/:bookId`, inventoryController.addReview);
+
+
 
 module.exports = router;

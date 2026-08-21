@@ -80,6 +80,10 @@ const findAllBooks = async (limit = 20, offset = 0, filters = {}, sort = 'recent
         whereConditions.push(`b.first_publish_year = ?`);
         queryParams.push(filters.year);
     }
+    if (filters.workKey) {
+        whereConditions.push(`b.open_library_work_key = ?`);
+        queryParams.push(filters.workKey);
+    }
 
     const whereClause = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(' AND ')}` : '';
 
@@ -108,10 +112,12 @@ const findAllBooks = async (limit = 20, offset = 0, filters = {}, sort = 'recent
     // we should apply WHERE before GROUP BY
     const fullQuery = `
         SELECT 
+            b.id,
             b.open_library_work_key AS work_key,
             b.title,
             b.first_publish_year,
             b.cover_id AS cover_i,
+            b.is_reviewed,
             GROUP_CONCAT(DISTINCT a.name SEPARATOR '||') AS author_name,
             GROUP_CONCAT(DISTINCT s.name SEPARATOR '||') AS subject,
             GROUP_CONCAT(DISTINCT l.code SEPARATOR '||') AS language
@@ -138,10 +144,12 @@ const findAllBooks = async (limit = 20, offset = 0, filters = {}, sort = 'recent
     const [countRows] = await db.query(countQuery, queryParams);
 
     const formattedRows = rows.map(row => ({
+        id: row.id,
         key: `/works/${row.work_key}`,
         title: row.title,
         first_publish_year: row.first_publish_year,
         cover_i: row.cover_i,
+        is_reviewed: !!row.is_reviewed,
         author_name: row.author_name ? row.author_name.split('||') : [],
         subject: row.subject ? row.subject.split('||') : [],
         language: row.language ? row.language.split('||') : []
