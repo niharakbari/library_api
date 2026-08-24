@@ -31,9 +31,24 @@ const markBookAsReviewed = async (bookId, connection = db) => {
     );
 };
 
+
+const deleteBookReview = async (bookId, connection  = db ) => {
+    const [result] = await connection.query(
+        `
+        DELETE 
+        FROM book_reviews
+        WHERE book_id = ?
+        `,
+        [bookId]
+    );
+
+    return result;
+}
+
 module.exports = {
     getReviewByBookAndUser,
     createReview,
     updateReview,
-    markBookAsReviewed
+    markBookAsReviewed,
+    deleteBookReview
 };

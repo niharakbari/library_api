@@ -19,6 +19,8 @@ router.get("/languages", protect, bookController.getLanguages);
 
 router.get("/subjects", protect, bookController.getSubjects);
 
+router.delete("/delete/:id", protect, bookController.deleteBook);
+
 router.get("/authors", protect, bookController.getAuthors);
 router.post("/author/:id", protect, bookController.updateAuthor);
 
@@ -29,5 +31,6 @@ router.post("/publishYear/:id", protect, bookController.updatePublishYear);
 router.get("/:bookId/review", protect, bookController.getReview);
 router.post("/:bookId/review", protect, bookController.createReview);
 router.patch("/:bookId/review", protect, bookController.updateReview);
+
 
 module.exports = router;

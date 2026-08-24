@@ -17,14 +17,14 @@ app.set('io', io);
 io.on('connection', (socket) => {
     logger.info(`Socket connected: ${socket.id}`);
     
-    // Allow clients to join specific workshop rooms for targeted events
-    socket.on('join_workshop', (workshopId) => {
-        socket.join(`workshop_${workshopId}`);
-        logger.info(`Socket ${socket.id} joined room workshop_${workshopId}`);
+    // Allow clients to join specific import_job rooms for targeted events
+    socket.on('join_import_job', (importJobId) => {
+        socket.join(`import_job_${importJobId}`);
+        logger.info(`Socket ${socket.id} joined room import_job_${importJobId}`);
     });
 
-    socket.on('leave_workshop', (workshopId) => {
-        socket.leave(`workshop_${workshopId}`);
+    socket.on('leave_import_job', (importJobId) => {
+        socket.leave(`import_job_${importJobId}`);
     });
 
     socket.on('disconnect', () => {

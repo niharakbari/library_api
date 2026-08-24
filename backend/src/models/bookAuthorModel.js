@@ -12,6 +12,20 @@ const create = async (bookId, authorId, connection = db) => {
     return result;
 };
 
+const deleteBookAuthor = async (bookId, connection  = db ) => {
+    const [result] = await connection.query(
+        `
+        DELETE 
+        FROM book_authors
+        WHERE book_id = ?
+        `,
+        [bookId]
+    );
+
+    return result;
+}
+
 module.exports = {
     create,
+    deleteBookAuthor
 };

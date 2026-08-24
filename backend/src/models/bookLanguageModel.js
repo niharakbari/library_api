@@ -11,6 +11,20 @@ const create = async (bookId, languageId, connection = db) => {
     );
 };
 
+const deleteBookLanguage = async (bookId, connection = db) => {
+    await connection.query(
+        `
+        DELETE 
+        FROM book_languages
+        WHERE
+        book_id = ?
+        `,
+        [bookId]
+    )
+
+};
+
 module.exports = {
-    create
+    create,
+    deleteBookLanguage
 };

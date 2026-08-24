@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Library, Loader2, ChevronLeft, ChevronRight, Edit2, Check, X, Star } from 'lucide-react';
+import { Library, Loader2, ChevronLeft, ChevronRight, Edit2, Check, X, Star, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/UI/ConfirmModal';
 
 export default function MyLibrary() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [results, setResults] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
   const limit = 20;
+
+  // Delete State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
 
   // Edit State
   const [editingAuthor, setEditingAuthor] = useState(null);
@@ -56,9 +65,46 @@ export default function MyLibrary() {
     }
   };
 
+  const handleDeleteBook = async () => {
+    if (!bookToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await axios.delete(`/api/books/delete/${bookToDelete.id}`, {
+        data: { bookIds: [bookToDelete.id] }
+      });
+      if (response.data.success) {
+        setResults(prev => prev.filter(b => b.id !== bookToDelete.id));
+        setTotal(prev => prev - 1);
+        setDeleteModalOpen(false);
+        setBookToDelete(null);
+        // Clear global message if any, since we're acting locally
+        if (location.state?.message) {
+          navigate(location.pathname, { replace: true });
+        }
+      } else {
+        setError('Failed to delete book.');
+        setDeleteModalOpen(false);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete book.');
+      setDeleteModalOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   useEffect(() => {
     fetchCatalog(0);
   }, [sort]);
+
+  useEffect(() => {
+    if (location.state?.message) {
+      setMessage({ type: 'success', text: location.state.message });
+      navigate(location.pathname, { replace: true });
+      setTimeout(() => setMessage(null), 5000);
+    }
+  }, [location, navigate]);
+
 
   const handleApplyFilters = (e) => {
     e.preventDefault();
@@ -221,6 +267,19 @@ export default function MyLibrary() {
         </div>
       )}
 
+      {message && (
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '24px',
+          backgroundColor: message.type === 'error' ? 'var(--error-bg)' : 'var(--success-bg)',
+          color: message.type === 'error' ? 'var(--error)' : 'var(--success)',
+          border: `1px solid ${message.type === 'error' ? '#FFCDCD' : '#C8E6C9'}`
+        }}>
+          {message.text}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }}>
           <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px auto' }} />
@@ -248,8 +307,15 @@ export default function MyLibrary() {
                 }}
               >
                 <div style={{ position: 'relative', width: '100%', height: '200px', backgroundColor: 'var(--bg)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setBookToDelete(work); setDeleteModalOpen(true); }}
+                    style={{ position: 'absolute', top: '8px', right: '8px', padding: '6px', backgroundColor: 'rgba(255, 255, 255, 0.9)', color: 'var(--error)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', zIndex: 10 }}
+                    title="Delete Book"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   {work.cover_i ? (
-                    <img src={`https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg`} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={`${import.meta.env.VITE_OPENLIBRARY_COVERS_URL}/${work.cover_i}-M.jpg`} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>No Cover</div>
                   )}
@@ -386,6 +452,18 @@ export default function MyLibrary() {
           </Link>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Book"
+        message={`Are you sure you want to delete "${bookToDelete?.title}" from your library? This action cannot be undone.`}
+        confirmText="Delete Book"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        isProcessing={isDeleting}
+        onConfirm={handleDeleteBook}
+        onCancel={() => setDeleteModalOpen(false)}
+      />
     </div>
   );
 }

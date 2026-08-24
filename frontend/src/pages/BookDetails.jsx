@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, ExternalLink, Download, Loader2, Star, Edit2, Check, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Download, Loader2, Star, Edit2, Check, X, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/UI/ConfirmModal';
 
 export default function BookDetails() {
   const { workKey } = useParams();
   const cleanKey = workKey.replace('/works/', '');
+  const navigate = useNavigate();
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [work, setWork] = useState(null);
   const [editions, setEditions] = useState([]);
@@ -69,6 +74,28 @@ export default function BookDetails() {
     };
     if (workKey) fetchData();
   }, [workKey, cleanKey]);
+
+  const handleDeleteBook = async () => {
+    if (!localBook?.id) return;
+    setIsDeleting(true);
+    try {
+      const response = await axios.delete(`/api/books/delete/${localBook.id}`, {
+        data: { bookIds: [localBook.id] }
+      });
+      if (response.data.success) {
+        // Option A: Navigate to library
+        navigate('/library', { state: { message: 'Book deleted successfully' } });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to delete book.' });
+        setShowDeleteModal(false);
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to delete book.' });
+      setShowDeleteModal(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleImport = async () => {
     // ...existing handleImport code...
@@ -182,7 +209,7 @@ export default function BookDetails() {
         <div style={{ width: '300px', flexShrink: 0, maxWidth: '100%' }}>
           <div className="card" style={{ padding: '16px', backgroundColor: 'var(--bg)' }}>
             {work.covers?.[0] ? (
-              <img src={`https://covers.openlibrary.org/b/id/${work.covers[0]}-L.jpg`} alt="cover" style={{ width: '100%', borderRadius: '8px', objectFit: 'cover' }} />
+              <img src={`${import.meta.env.VITE_OPENLIBRARY_COVERS_URL}/${work.covers[0]}-L.jpg`} alt="cover" style={{ width: '100%', borderRadius: '8px', objectFit: 'cover' }} />
             ) : (
               <div style={{ width: '100%', aspectRatio: '2/3', backgroundColor: '#E5E5E5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>No Cover</div>
             )}
@@ -233,8 +260,18 @@ export default function BookDetails() {
             </div>
 
             {localBook ? (
-              <div style={{ flexShrink: 0, padding: '8px 16px', backgroundColor: 'var(--success-bg)', color: 'var(--success)', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Check size={16} /> In Library
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ flexShrink: 0, padding: '8px 16px', backgroundColor: 'var(--success-bg)', color: 'var(--success)', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Check size={16} /> In Library
+                </div>
+                <button 
+                  className="btn-secondary" 
+                  style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
+                  onClick={() => setShowDeleteModal(true)}
+                  title="Delete Book"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             ) : (
               <button 
@@ -386,7 +423,7 @@ export default function BookDetails() {
                     <span>ISBN: {edition.isbn_13?.[0] || edition.isbn_10?.[0] || 'N/A'}</span>
                   </div>
                 </div>
-                <a href={`https://openlibrary.org${edition.key}`} target="_blank" rel="noreferrer" className="btn-secondary" style={{ padding: '8px 12px' }}>
+                <a href={`${import.meta.env.VITE_OPENLIBRARY_URL}${edition.key}`} target="_blank" rel="noreferrer" className="btn-secondary" style={{ padding: '8px 12px' }}>
                   Open Library <ExternalLink size={14} />
                 </a>
               </div>
@@ -394,6 +431,18 @@ export default function BookDetails() {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Book"
+        message={`Are you sure you want to delete "${work?.title || localBook?.title || 'this book'}"? This action cannot be undone.`}
+        confirmText="Delete Book"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        isProcessing={isDeleting}
+        onConfirm={handleDeleteBook}
+        onCancel={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }

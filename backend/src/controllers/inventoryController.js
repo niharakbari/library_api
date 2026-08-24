@@ -1,7 +1,6 @@
 const inventoryModel = require('../models/inventoryModel');
 const asyncHandler = require('../utils/asyncHandler');
 
-const bookReviewModel = require('../models/bookReviewsModel');
 
 const searchAuthor = asyncHandler(async (req, res) => {
     const { author } = req.query;
@@ -78,34 +77,10 @@ const searchSubject = asyncHandler(async (req, res) => {
     });
 });
 
-const addReview = async (req, res, next) => {
-    
-    const userId = req.user.id;
-
-    const { bookId, reviewText, rating  } = req.body;
-
-    if (!reviewText) {
-        return res.status(400).json({
-            success: true,
-            message: "Some text required"
-        });
-    };
-
-    if (rating<0 || rating>5) {
-        return res.status(400).json({
-            success : false,
-            message: "Rating must be between 0 and 5"
-        });
-    };
-
-    await bookReviewModel.addReview(bookId, rating, reviewText);   
-
-}
 
 module.exports = {
     searchAuthor,
     searchLanguage,
     searchTitle,
-    searchSubject,
-    addReview
+    searchSubject
 }

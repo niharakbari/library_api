@@ -7,6 +7,10 @@ const bookReviewsModel = require('../models/bookReviewsModel');
 
 const inventoryModel = require(`../models/inventoryModel`)
 const bookAuthorModel = require('../models/bookAuthorModel');
+const bookLanguageModel = require(`../models/bookLanguageModel`);
+const bookSubjectsModel = require('../models/bookSubjectsModel');
+
+const db = require(`../config/database`);
 
 
 const searchBooks = async (req, res, next) => {
@@ -132,6 +136,7 @@ const getBookEditions = async (req, res, next) => {
 
 
 const bookModel = require("../models/bookModel");
+const { Connection } = require("mysql2");
 
 const getLocalCatalog = async (req, res, next) => {
     try {
@@ -356,16 +361,80 @@ const updateReview = async (req, res, next) => {
         const { rating, reviewText } = req.body;
 
         const existing = await bookReviewsModel.getReviewByBookAndUser(bookId, userId);
+
         if (!existing) {
             return res.status(404).json({ success: false, message: "Review not found." });
         }
 
         await bookReviewsModel.updateReview(bookId, userId, rating, reviewText);
+        await bookReviewsModel.markBookAsReviewed(bookId)
 
-        return res.status(200).json({ success: true, message: "Review updated successfully." });
+        return res.status(200).json({ 
+            success: true, 
+            message: "Review updated successfully." 
+        });
+
     } catch (error) {
         next(error);
     }
+};
+
+
+
+// for deleteing book
+
+const deleteBook = async (req, res, next) => {
+
+    const { bookIds } = req.body;
+
+    if (!Array.isArray(bookIds) || bookIds.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Book ids are required"
+        });
+    };
+
+
+    
+    for (const id of bookIds) {
+        
+        let connection;
+
+        try {
+            connection = await db.getConnection();
+            await connection.beginTransaction();
+
+
+            await bookAuthorModel.deleteBookAuthor(id, connection);
+            await bookLanguageModel.deleteBookLanguage(id, connection);
+            await bookReviewsModel.deleteBookReview(id, connection);
+            await bookSubjectsModel.deleteBookSubject(id, connection);
+            await bookModel.deleteBook(id, connection);
+
+            await connection.commit();
+
+            logger.info(`Book id: ${id} deleted successfully`);
+
+        }catch(err) {
+
+            if (connection) {
+                await connection.rollback();
+            }
+
+            return next(err);
+        } finally {
+            if (connection) {
+                connection.release();
+            };
+        };  
+
+    };
+
+    return res.status(200).json({
+                success: true,
+                message: "Book Deleteded successfully"
+            });
+
 };
 
 module.exports = {
@@ -381,5 +450,6 @@ module.exports = {
     updatePublishYear,
     getReview,
     createReview,
-    updateReview
+    updateReview,
+    deleteBook
 }

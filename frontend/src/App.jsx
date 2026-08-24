@@ -12,6 +12,7 @@ import Subjects from './pages/Subjects';
 import Languages from './pages/Languages';
 import DataQuality from './pages/DataQuality';
 import './index.css';
+import "./socket";
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('accessToken');

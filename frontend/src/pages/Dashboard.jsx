@@ -133,7 +133,7 @@ export default function Dashboard() {
                   {recentBooks.map((book) => (
                     <Link to={`/books/${book.key.replace('/works/', '')}`} key={book.key} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 0', borderBottom: '1px solid var(--bg)', textDecoration: 'none', color: 'inherit' }}>
                       <div style={{ width: '40px', height: '60px', backgroundColor: 'var(--bg)', borderRadius: '4px', overflow: 'hidden', flexShrink: 0 }}>
-                        {book.cover_i && <img src={`https://covers.openlibrary.org/b/id/${book.cover_i}-S.jpg`} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                        {book.cover_i && <img src={`${import.meta.env.VITE_OPENLIBRARY_COVERS_URL}/${book.cover_i}-S.jpg`} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 500, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{book.title}</div>

@@ -178,9 +178,22 @@ const update = async (id, {
     );
 };
 
+const deleteBook = async (bookId, connection = db) => {
+    await connection.query(
+        `
+        DELETE
+        FROM books
+        WHERE 
+        id = ?
+        `,
+        [bookId] 
+    );
+};
+
 module.exports = {
     findByOpenLibraryWorkKey,
     create,
     findAllBooks,
     update,
+    deleteBook
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Download, Loader2, CheckSquare, ChevronLeft, ChevronRight, BookOpen, Library } from 'lucide-react';
+import socket from "../socket";
 
 export default function BookSearch() {
   const [searchParams] = useSearchParams();
@@ -88,6 +89,9 @@ export default function BookSearch() {
   useEffect(() => {
     let interval;
     if (activeJobId) {
+
+      socket.emit("join_import_job", activeJobId);
+
       // Fetch immediately once
       const fetchJob = async () => {
         try {
@@ -705,7 +709,7 @@ export default function BookSearch() {
                       />
                     )}
                     {work.cover_i ? (
-                      <img src={`https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg`} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: searchMode === 'local' ? 'pointer' : 'default' }} onClick={() => searchMode === 'local' && navigate(`/books/${cleanKey}`)} />
+                      <img src={`${import.meta.env.VITE_OPENLIBRARY_COVERS_URL}/${work.cover_i}-M.jpg`} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: searchMode === 'local' ? 'pointer' : 'default' }} onClick={() => searchMode === 'local' && navigate(`/books/${cleanKey}`)} />
                     ) : (
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', cursor: searchMode === 'local' ? 'pointer' : 'default' }} onClick={() => searchMode === 'local' && navigate(`/books/${cleanKey}`)}>No Cover</div>
                     )}
