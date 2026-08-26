@@ -84,6 +84,10 @@ const findAllBooks = async (limit = 20, offset = 0, filters = {}, sort = 'recent
         whereConditions.push(`b.open_library_work_key = ?`);
         queryParams.push(filters.workKey);
     }
+    if (filters.id) {
+        whereConditions.push(`b.id = ?`);
+        queryParams.push(filters.id);
+    }
 
     const whereClause = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(' AND ')}` : '';
 
@@ -190,10 +194,27 @@ const deleteBook = async (bookId, connection = db) => {
     );
 };
 
+
+const booksByYear = async  ( connection = db ) => {
+    const [bookListByYear] = await connection.query(
+        `
+        SELECT
+            first_publish_year AS publish_year,
+            COUNT(id) AS total_books
+        FROM books
+        WHERE first_publish_year IS NOT NULL
+        GROUP BY first_publish_year
+        ORDER BY publish_year ASC;
+        `,
+    );
+    return bookListByYear;
+};
+
 module.exports = {
     findByOpenLibraryWorkKey,
     create,
     findAllBooks,
     update,
-    deleteBook
+    deleteBook,
+    booksByYear
 };

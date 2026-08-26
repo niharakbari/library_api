@@ -51,7 +51,7 @@ export default function BookSearch() {
 
   // Auto-search on mount if query params exist
   useEffect(() => {
-    const mode = searchParams.get('mode');
+    const mode = searchParams.get('mode');                            
     
     if (mode === 'local') {
       const type = searchParams.get('type') || 'title';
@@ -85,33 +85,109 @@ export default function BookSearch() {
     }
   }, [message]);
 
-  // Poll for active job completion
+// Poll for active job completion
   useEffect(() => {
     let interval;
-    if (activeJobId) {
 
+    if (!activeJobId) return;
+
+    const joinImportJob = () => {
       socket.emit("join_import_job", activeJobId);
+    };
 
-      // Fetch immediately once
-      const fetchJob = async () => {
-        try {
-          const response = await axios.get(`/api/books/import/jobs/${activeJobId}`);
-          if (response.data.success) {
-            const job = response.data.data;
-            setActiveJobData(job);
-            if (job && (job.status === 'completed' || job.status === 'partially_completed' || job.status === 'failed')) {
-              clearInterval(interval);
-              setActiveJobId(null);
-            }
-          }
-        } catch (error) {
-          console.error("Polling error", error);
-        }
-      };
-      fetchJob();
-      interval = setInterval(fetchJob, 1000); // Check every second for snappy updates
+    // Join immediately if already connected
+    if (socket.connected) {
+      joinImportJob();
     }
-    return () => clearInterval(interval);
+
+    // Join when Socket.IO connects/reconnects
+    socket.on("connect", joinImportJob);
+
+    // Handle real-time progress events
+    const handleProgress = (data) => {
+      if (data.jobId === activeJobId) {
+        setActiveJobData((prev) => ({
+          ...prev,
+          status: data.status,
+          processed_records: data.completed,
+          total_records: data.total,
+          successful_records: data.imported,
+          updated_records: data.updated,
+          failed_records: data.failed
+        }));
+      }
+    };
+
+    const handleCompleted = (data) => {
+      if (data.jobId === activeJobId) {
+        setActiveJobData((prev) => ({
+          ...prev,
+          status: data.status,
+          processed_records: data.completed,
+          total_records: data.total,
+          successful_records: data.imported,
+          updated_records: data.updated,
+          failed_records: data.failed
+        }));
+        clearInterval(interval);
+        setActiveJobId(null);
+      }
+    };
+
+    const handleFailed = (data) => {
+      if (data.jobId === activeJobId) {
+        setActiveJobData((prev) => ({
+          ...prev,
+          status: data.status,
+          error: data.error
+        }));
+        clearInterval(interval);
+        setActiveJobId(null);
+      }
+    };
+
+    socket.on("import_progress", handleProgress);
+    socket.on("import_completed", handleCompleted);
+    socket.on("import_failed", handleFailed);
+
+    // Fetch immediately once
+    const fetchJob = async () => {
+      try {
+        const response = await axios.get(`/api/books/import/jobs/${activeJobId}`);
+
+        if (response.data.success) {
+          const job = response.data.data;
+
+          setActiveJobData(job);
+
+          if (
+            job &&
+            (
+              job.status === 'completed' ||
+              job.status === 'partially_completed' ||
+              job.status === 'failed'
+            )
+          ) {
+            clearInterval(interval);
+            setActiveJobId(null);
+          }
+        }
+      } catch (error) {
+        console.error("Polling error", error);
+      }
+    };
+
+    fetchJob();
+    // Preserve polling as fallback per instructions
+    interval = setInterval(fetchJob, 1000);
+
+    return () => {
+      clearInterval(interval);
+      socket.off("connect", joinImportJob);
+      socket.off("import_progress", handleProgress);
+      socket.off("import_completed", handleCompleted);
+      socket.off("import_failed", handleFailed);
+    };
   }, [activeJobId]);
 
   const executeOpenLibrarySearch = async (currentOffset = 0, overrideParams = null) => {
@@ -157,23 +233,19 @@ export default function BookSearch() {
     setSearchMode('local');
     
     try {
-      const response = await axios.get(`/inventory/search/${typeToUse}`, {
-        params: { [typeToUse]: queryToUse }
+      const response = await axios.get('/api/books/catalog', {
+        params: { [typeToUse]: queryToUse, limit: 100 }
       });
       if (response.data.success) {
-        // Map local inventory to common card format
-        const formattedResults = response.data.data.map(item => ({
-          key: `/works/${item.open_library_work_key}`,
-          title: item.title,
-          first_publish_year: item.first_publish_year,
-          cover_i: item.cover_id,
-          author_name: [],
-          subject: [],
-          language: []
-        }));
-        setResults(formattedResults);
-        setTotal(formattedResults.length);
+        const fetchedResults = response.data.data.results || [];
+        setResults(fetchedResults);
+        setTotal(fetchedResults.length);
         setOffset(0);
+        if (fetchedResults.length === 0) {
+          setMessage({ type: 'error', text: 'No local records found.' });
+        }
+      } else {
+        setMessage({ type: 'error', text: 'Failed to search Local Library.' });
       }
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.message || `Failed to search Local Library by ${localSearchType}.` });
@@ -300,7 +372,10 @@ export default function BookSearch() {
       if (response.data.success) {
         setMessage({ type: 'success', text: response.data.message || 'Import job started successfully. Waiting for completion...' });
         setSelectedWorks(new Set());
+
         if (response.data.data?.jobId) {
+
+
           setActiveJobId(response.data.data.jobId);
           setActiveJobData(null); 
         }
@@ -620,6 +695,7 @@ export default function BookSearch() {
               <option value="author">Author</option>
               <option value="language">Language Code</option>
               <option value="subject">Subject</option>
+              <option value="year">Publish Year</option>
             </select>
             <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
               <Search size={18} color="var(--text-secondary)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />

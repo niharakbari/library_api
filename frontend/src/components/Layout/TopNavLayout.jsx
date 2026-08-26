@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Search, List, LogOut, LayoutDashboard, Library, Database } from 'lucide-react';
+import { BookOpen, Search, List, LogOut, LayoutDashboard, Library, Database, PieChart } from 'lucide-react';
 import axios from 'axios';
 import './TopNavLayout.css';
 
@@ -26,6 +26,7 @@ export default function TopNavLayout() {
     { path: '/search', label: 'Search', icon: Search },
     { path: '/jobs', label: 'Jobs', icon: List },
     { path: '/data-quality', label: 'Data Quality', icon: Database },
+    { path: '/reports', label: 'Reports', icon: PieChart },
   ];
 
   return (

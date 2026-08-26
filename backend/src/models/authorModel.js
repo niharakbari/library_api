@@ -14,9 +14,7 @@ const findByOpenLibraryAuthorKey = async (authorKey, connection = db) => {
 
 
 const create = async ({ authorKey, name }, connection = db) => {
-    console.log("AUTHOR: before INSERT");
-    console.log("authorKey:", authorKey);
-    console.log("name:", name);
+
     const [result] = await connection.query(
         `INSERT INTO authors (
             open_library_author_key,
@@ -51,6 +49,8 @@ const getIdByName = async (authorName, connection = db ) => {
     return rows[0]?.id || null;
 
 };
+
+
 
 
 

@@ -163,7 +163,7 @@ export default function DataQuality() {
                     </td>
                     <td style={{ padding: '16px 24px' }}>
                       <Link 
-                        to={`/books/${(book.open_library_work_key || book.workKey || '').replace('/works/', '')}`} 
+                        to={`/books/${book.open_library_work_key ? book.open_library_work_key.replace('/works/', '') : `local_${book.id}`}`} 
                         className="btn-secondary" 
                         style={{ padding: '6px 12px', fontSize: '13px' }}
                       >

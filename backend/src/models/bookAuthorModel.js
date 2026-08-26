@@ -25,7 +25,30 @@ const deleteBookAuthor = async (bookId, connection  = db ) => {
     return result;
 }
 
+const topAuthors = async (limit, connection = db) => {
+
+    const [topAuthorslist] = await connection.query (
+        `
+        SELECT
+            a.id AS author_id,
+            a.name AS author_name,
+            COUNT(ba.book_id) AS total_books
+        FROM authors a
+        INNER JOIN book_authors ba
+            ON a.id = ba.author_id
+        GROUP BY a.id, a.name
+        ORDER BY total_books DESC
+        LIMIT ?;
+        `,
+        [limit]
+    );
+
+    return topAuthorslist;
+
+};
+
 module.exports = {
     create,
-    deleteBookAuthor
+    deleteBookAuthor,
+    topAuthors
 };

@@ -22,7 +22,6 @@ const importBook = async (workKey, languages = [], connection = db) => {
     const cleanWorkKey = work.key.replace("/works/", "");
 
 
-    console.log("WORK KEY RECEIVED BY IMPORT:", JSON.stringify(workKey));
 
     if (!work.title) {
         return {
@@ -99,9 +98,6 @@ const importBook = async (workKey, languages = [], connection = db) => {
         );
        }
 
-       console.log("Author:", author);
-       
-        console.log(`Author of book id ${bookId} imported`);
 
         await bookAuthorModel.create(
             bookId,

@@ -24,9 +24,32 @@ const deleteBookSubject = async (bookId, connection = db) => {
         `,
         [bookId] 
     );
-}
+};
+
+const subjectWiseBooks = async (limit, connection = db) => {
+
+    const [subjectWiseBookList] = await connection.query (
+        `
+        SELECT
+            s.id AS subject_id,
+            s.name AS subject_name,
+            COUNT(bs.book_id) AS total_books
+        FROM subjects s
+        INNER JOIN book_subjects bs
+            ON s.id = bs.subject_id
+        GROUP BY s.id, s.name
+        ORDER BY total_books DESC
+        LIMIT ?;   
+        `,
+        [limit]
+    );
+
+    return subjectWiseBookList;
+
+};
 
 module.exports = {
     create,
-    deleteBookSubject
+    deleteBookSubject,
+    subjectWiseBooks
 };

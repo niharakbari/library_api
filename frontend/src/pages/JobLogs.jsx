@@ -10,6 +10,13 @@ export default function JobLogs() {
   const [jobSummary, setJobSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const formatErrorMessage = (msg) => {
+    if (msg && msg.includes("Duplicate entry") && msg.includes("uq_books_open_library_work_key")) {
+      return "Book already imported";
+    }
+    return msg;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -179,7 +186,7 @@ export default function JobLogs() {
                       
                       {item.error_message && (
                         <span style={{ fontSize: '13px', color: 'var(--error)', marginTop: '4px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <XCircle size={14} /> {item.error_message}
+                          <XCircle size={14} /> {formatErrorMessage(item.error_message)}
                         </span>
                       )}
                     </div>
@@ -225,7 +232,7 @@ export default function JobLogs() {
                     </div>
                     
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.5, fontWeight: log.level === 'error' ? 500 : 400 }}>{log.message}</span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.5, fontWeight: log.level === 'error' ? 500 : 400 }}>{formatErrorMessage(log.message)}</span>
                       {log.open_library_work_key && (
                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace', backgroundColor: 'var(--bg)', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', border: '1px solid var(--border)' }}>
                           {log.open_library_work_key}

@@ -35,6 +35,11 @@ const importBook = async (req, res, next) => {
         await importJobModel.updateStatus(jobId, 'running');
         await importJobLogModel.createLog(jobId, 'info', `Started single import for work ${workKey}`);
 
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('library_updated', { reason: 'job_created' });
+        }
+
         let itemId = null;
         try {
             const cleanWorkKey = workKey.replace("/works/", "");
@@ -76,6 +81,10 @@ const importBook = async (req, res, next) => {
             await importJobModel.markCompleted(jobId, finalStatus);
             await importJobLogModel.createLog(jobId, 'info', `Job finished with status: ${finalStatus}`);
 
+            if (io) {
+                io.emit('library_updated', { reason: 'single_import_completed' });
+            }
+
             return res.status(200).json({
                 success: true,
                 data: result,
@@ -95,6 +104,11 @@ const importBook = async (req, res, next) => {
             await importJobModel.incrementCounters(jobId, { processed: 1, failed: 1 });
             await importJobModel.markCompleted(jobId, 'failed');
             await importJobLogModel.createLog(jobId, 'error', `Error importing work: ${importError.message}`, workKey);
+            
+            if (io) {
+                io.emit('library_updated', { reason: 'single_import_failed' });
+            }
+            
             throw importError;
         }
 

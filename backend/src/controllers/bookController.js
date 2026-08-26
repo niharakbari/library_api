@@ -140,7 +140,7 @@ const { Connection } = require("mysql2");
 
 const getLocalCatalog = async (req, res, next) => {
     try {
-        const { q, title, author, subject, language, year, sort } = req.query;
+        const { q, title, author, subject, language, year, sort, workKey, id } = req.query;
 
         const limit = Number(req.query.limit) || 20;
         const offset = Number(req.query.offset) || 0;
@@ -165,7 +165,9 @@ const getLocalCatalog = async (req, res, next) => {
             author,
             subject,
             language,
-            year
+            year,
+            workKey,
+            id
         };
 
         const data = await bookModel.findAllBooks(limit, offset, filters, sort);
@@ -280,6 +282,11 @@ const updateAuthor = async (req, res, next) => {
 
         await inventoryModel.updateBookAuthor(bookId, authorId);
 
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('library_updated', { reason: 'author_updated' });
+        }
+
         return res.status(200).json({
             success: true,
             message: `Updated author with id ${authorId}`
@@ -304,6 +311,11 @@ const updatePublishYear = async (req, res, next) => {
         }
 
         await inventoryModel.updatePublishYear(bookId, publishYear);
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('library_updated', { reason: 'year_updated' });
+        }
 
         return res.status(200).json({
             success: true,
@@ -346,6 +358,11 @@ const createReview = async (req, res, next) => {
         await bookReviewsModel.createReview(bookId, userId, rating, reviewText);
         await bookReviewsModel.markBookAsReviewed(bookId);
 
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('library_updated', { reason: 'review_created' });
+        }
+
         return res.status(201).json({ success: true, message: "Review created successfully." });
     } catch (error) {
         next(error);
@@ -368,6 +385,11 @@ const updateReview = async (req, res, next) => {
 
         await bookReviewsModel.updateReview(bookId, userId, rating, reviewText);
         await bookReviewsModel.markBookAsReviewed(bookId)
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('library_updated', { reason: 'review_updated' });
+        }
 
         return res.status(200).json({ 
             success: true, 
@@ -413,7 +435,7 @@ const deleteBook = async (req, res, next) => {
 
             await connection.commit();
 
-            logger.info(`Book id: ${id} deleted successfully`);
+            // logger.info(`Book id: ${id} deleted successfully`);
 
         }catch(err) {
 
@@ -429,6 +451,11 @@ const deleteBook = async (req, res, next) => {
         };  
 
     };
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('library_updated', { reason: 'books_deleted' });
+    }
 
     return res.status(200).json({
                 success: true,

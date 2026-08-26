@@ -36,6 +36,10 @@ const startBatchImport = async (userId, q, title, author, language, limit, offse
     // Start background processing loop
     processBatchInBackground(jobId, works);
 
+    const app = require('../app');
+    const io = app.get('io');
+    if (io) io.emit("library_updated", { reason: "job_created" });
+
     return { jobId, status: 'pending', totalToProcess };
 };
 
@@ -46,83 +50,106 @@ const startSelectedImport = async (userId, works) => {
     // Start background processing loop
     processBatchInBackground(jobId, works);
     
+    const app = require('../app');
+    const io = app.get('io');
+    if (io) io.emit("library_updated", { reason: "job_created" });
+
     return { jobId, status: 'pending', totalToProcess: works.length };
 };
 
 const importJobItemModel = require("../models/importJobItemModel");
 
 const processBatchInBackground = async (jobId, works) => {
+    const app = require('../app');
+    const io = app.get('io');
+
+    let completed = 0;
+    let imported = 0;
+    let updated = 0;
+    let failed = 0;
+    const total = works.length;
+    const status = 'running';
+
+    const emitProgress = () => {
+        if (!io) return;
+        io.to(`import_job_${jobId}`).emit("import_progress", {
+            jobId,
+            completed,
+            total,
+            status,
+            imported,
+            updated,
+            failed
+        });
+        io.emit("library_updated", { reason: "import_progress" });
+    };
+
     try {
-
-
-        await importJobModel.updateStatus(jobId, 'running');
+        await importJobModel.updateStatus(jobId, status);
         await importJobLogModel.createLog(jobId, 'info', `Job started. Processing ${works.length} records.`);
 
         for (const work of works) {
-
             if (!work.key) {
-                    await importJobModel.incrementCounters(jobId, { processed: 1, skipped: 1 });
-                    await importJobLogModel.createLog(jobId, 'warning', `Work has no key. Skipping.`, null);
-                    continue;
+                await importJobModel.incrementCounters(jobId, { processed: 1, skipped: 1 });
+                await importJobLogModel.createLog(jobId, 'warning', `Work has no key. Skipping.`, null);
+                completed++;
+                emitProgress();
+                continue;
             };
 
             const cleanWorkKey = work.key.replace("/works/", "");
             const languages = work.language || [];
-
             let itemId = null;
 
             itemId = await importJobItemModel.createItem(jobId, {
-                    workKey: cleanWorkKey,
-                    title: work.title,
-                    languages: languages,
-                    status: 'processing'
-                });
+                workKey: cleanWorkKey,
+                title: work.title,
+                languages: languages,
+                status: 'processing'
+            });
 
             const connection = await db.getConnection();
             await connection.beginTransaction();
 
             try {
-
                 const result = await bookImportService.importBook(work.key, languages, connection);
 
                 if (result.status === "imported") {
                     await connection.commit();
-
                     await importJobItemModel.updateItemStatus(itemId, { status: 'imported', bookId: result.bookId });
                     await importJobModel.incrementCounters(jobId, { processed: 1, successful: 1 });
-
+                    completed++;
+                    imported++;
                 } else if (result.status === "updated") {
                     await connection.commit();
-
                     await importJobItemModel.updateItemStatus(itemId, { status: 'updated', bookId: result.bookId });
                     await importJobModel.incrementCounters(jobId, { processed: 1, updated: 1 });
-
+                    completed++;
+                    updated++;
                 } else if (result.status === "skipped") {
                     await connection.rollback();
-
                     await importJobItemModel.updateItemStatus(itemId, { status: 'skipped', errorMessage: result.errorMessage });
                     await importJobModel.incrementCounters(jobId, { processed: 1, skipped: 1 });
                     await importJobLogModel.createLog(jobId, 'warning', `Skipped ${work.key}: ${result.errorMessage}`, work.key);
-
+                    completed++;
                 } else if (result.status === "duplicate") {
                     await connection.commit();
-
                     await importJobItemModel.updateItemStatus(itemId, { status: 'duplicate', bookId: result.bookId });
                     await importJobModel.incrementCounters(jobId, { processed: 1, duplicate: 1 });
+                    completed++;
                 }
-
             } catch (error) {
-
                 await connection.rollback();
-
                 await importJobItemModel.updateItemStatus(itemId, { status: 'failed', errorMessage: error.message });
-
                 await importJobModel.incrementCounters(jobId, { processed: 1, failed: 1 });
                 await importJobLogModel.createLog(jobId, 'error', `Error importing work: ${error.message}`, work.key);
-
+                completed++;
+                failed++;
             } finally {
                 connection.release();
             }
+            
+            emitProgress();
         }
 
         const job = await importJobModel.findById(jobId);
@@ -139,12 +166,32 @@ const processBatchInBackground = async (jobId, works) => {
         await importJobModel.markCompleted(jobId, finalStatus);
         await importJobLogModel.createLog(jobId, 'info', `Job finished with status: ${finalStatus}`);
 
+        if (io) {
+            io.to(`import_job_${jobId}`).emit("import_completed", {
+                jobId,
+                status: finalStatus,
+                completed,
+                total,
+                imported,
+                updated,
+                failed
+            });
+            io.emit("library_updated", { reason: "import_completed" });
+        }
     } catch (criticalError) {
-
         // Fallback for catastrophic failure in the batch process itself
         console.error(`Critical error in batch job ${jobId}:`, criticalError);
         await importJobModel.markCompleted(jobId, 'failed');
         await importJobLogModel.createLog(jobId, 'error', `Critical failure during job execution: ${criticalError.message}`);
+        
+        if (io) {
+            io.to(`import_job_${jobId}`).emit("import_failed", {
+                jobId,
+                status: "failed",
+                error: "Import job failed"
+            });
+            io.emit("library_updated", { reason: "import_failed" });
+        }
     }
 };
 

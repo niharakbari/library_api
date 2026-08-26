@@ -77,16 +77,21 @@ export default function MyLibrary() {
         setTotal(prev => prev - 1);
         setDeleteModalOpen(false);
         setBookToDelete(null);
+        setMessage({ type: 'success', text: 'Book deleted successfully.' });
+        setTimeout(() => setMessage(null), 5000);
+        
         // Clear global message if any, since we're acting locally
         if (location.state?.message) {
           navigate(location.pathname, { replace: true });
         }
       } else {
-        setError('Failed to delete book.');
+        setMessage({ type: 'error', text: 'Failed to delete book.' });
+        setTimeout(() => setMessage(null), 5000);
         setDeleteModalOpen(false);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete book.');
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to delete book.' });
+      setTimeout(() => setMessage(null), 5000);
       setDeleteModalOpen(false);
     } finally {
       setIsDeleting(false);

@@ -11,6 +11,7 @@ import Authors from './pages/Authors';
 import Subjects from './pages/Subjects';
 import Languages from './pages/Languages';
 import DataQuality from './pages/DataQuality';
+import Reports from './pages/Reports';
 import './index.css';
 import "./socket";
 
@@ -47,6 +48,8 @@ function App() {
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/languages" element={<Languages />} />
           <Route path="/data-quality" element={<DataQuality />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

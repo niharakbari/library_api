@@ -12,6 +12,10 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 
 const dataQualityRoutes = require(`./routes/dataQualityRoutes`);
 
+const reportRoutes = require('./routes/reportRoutes');
+
+const exportRoutes = require('./routes/exportRoutes');
+
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const globalErrorHandler = require("./middlewares/globalErrorHandler");
@@ -43,7 +47,9 @@ app.use("/inventory/search", inventoryRoutes);
 
 app.use("/api/data-quality", dataQualityRoutes);
 
+app.use("/api/advanced", reportRoutes);
 
+app.use('/api/export', exportRoutes);
 
 
 app.use(globalErrorHandler);

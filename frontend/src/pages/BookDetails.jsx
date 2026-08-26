@@ -37,20 +37,46 @@ export default function BookDetails() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [workRes, editionsRes, localRes] = await Promise.all([
-          axios.get(`/api/books/work/${workKey}`),
-          axios.get(`/api/books/work/${workKey}/editions`),
-          axios.get(`/api/books/catalog?workKey=${cleanKey}`)
-        ]);
+        const isLocalOnly = workKey.startsWith('local_');
+        const cleanKey = workKey.replace('/works/', '');
         
-        if (workRes.data.success) setWork(workRes.data.data);
-        if (editionsRes.data.success) setEditions(editionsRes.data.data.results || []);
+        let workRes = { data: { success: false, data: null } };
+        let editionsRes = { data: { success: false, data: { results: [] } } };
+        let localRes;
+
+        if (isLocalOnly) {
+          const localId = workKey.replace('local_', '');
+          localRes = await axios.get(`/api/books/catalog?id=${localId}`);
+        } else {
+          const results = await Promise.all([
+            axios.get(`/api/books/work/${workKey}`).catch(() => ({ data: { success: false, data: null } })),
+            axios.get(`/api/books/work/${workKey}/editions`).catch(() => ({ data: { success: false, data: { results: [] } } })),
+            axios.get(`/api/books/catalog?workKey=${cleanKey}`)
+          ]);
+          workRes = results[0];
+          editionsRes = results[1];
+          localRes = results[2];
+        }
 
         const foundLocal = localRes.data.success && localRes.data.data.results.length > 0 
           ? localRes.data.data.results[0] 
           : null;
         
         setLocalBook(foundLocal);
+
+        if (isLocalOnly && foundLocal) {
+          setWork({
+            title: foundLocal.title,
+            description: 'Local book record. No external Open Library data available.',
+            covers: foundLocal.cover_i ? [foundLocal.cover_i] : []
+          });
+        } else if (workRes.data.success) {
+          setWork(workRes.data.data);
+        }
+
+        if (editionsRes.data.success) {
+          setEditions(editionsRes.data.data.results || []);
+        }
 
         if (foundLocal) {
           try {

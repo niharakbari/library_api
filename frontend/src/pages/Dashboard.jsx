@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import socket from '../socket';
 
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -32,13 +33,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
+    const fetchDashboardData = async (isBackground = false) => {
+      if (!isBackground) setLoading(true);
       try {
+        const axiosConfig = {
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' }
+        };
+        
         const [statsRes, booksRes, jobsRes] = await Promise.all([
-          axios.get('/api/dashboard/stats'),
-          axios.get('/api/books/catalog', { params: { limit: 5 } }),
-          axios.get('/api/books/import/jobs', { params: { limit: 3 } })
+          axios.get('/api/dashboard/stats', axiosConfig),
+          axios.get('/api/books/catalog', { ...axiosConfig, params: { limit: 5 } }),
+          axios.get('/api/books/import/jobs', { ...axiosConfig, params: { limit: 3 } })
         ]);
 
         if (statsRes.data.success) setStats(statsRes.data.data);
@@ -47,11 +52,38 @@ export default function Dashboard() {
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
 
     fetchDashboardData();
+
+    let throttleTimeout = null;
+    let pendingUpdate = false;
+
+    const handleLibraryUpdated = (data) => {
+      console.log("Socket received 'library_updated':", data);
+      
+      if (!throttleTimeout) {
+        fetchDashboardData(true);
+        throttleTimeout = setTimeout(() => {
+          throttleTimeout = null;
+          if (pendingUpdate) {
+            pendingUpdate = false;
+            handleLibraryUpdated({ reason: 'catch_up' });
+          }
+        }, 1000);
+      } else {
+        pendingUpdate = true;
+      }
+    };
+
+    socket.on("library_updated", handleLibraryUpdated);
+
+    return () => {
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+      socket.off("library_updated", handleLibraryUpdated);
+    };
   }, []);
 
   const getStatusColor = (status) => {
