@@ -19,6 +19,7 @@ router.get("/languages", protect, bookController.getLanguages);
 
 router.get("/subjects", protect, bookController.getSubjects);
 
+router.delete("/clear", protect, bookController.clearLibrary);
 router.delete("/delete/:id", protect, bookController.deleteBook);
 
 router.get("/authors", protect, bookController.getAuthors);

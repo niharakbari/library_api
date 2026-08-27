@@ -46,6 +46,26 @@ const importBook = async (workKey, languages = [], connection = db) => {
             parsedYear = parseInt(match[0], 10);
         }
     }
+    
+    // Fallback: Many OpenLibrary works lack first_publish_date but their editions have publish_date
+    if (!parsedYear) {
+        try {
+            const editionsData = await openLibraryService.getWorkEditions(workKey, 5, 0);
+            if (editionsData && Array.isArray(editionsData.entries)) {
+                for (const edition of editionsData.entries) {
+                    if (edition.publish_date) {
+                        const match = String(edition.publish_date).match(/\b(1\d{3}|20\d{2})\b/);
+                        if (match) {
+                            parsedYear = parseInt(match[0], 10);
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(`Failed to fetch editions for year fallback on work ${workKey}`, err.message);
+        }
+    }
     parsedYear = parsedYear || work.first_publish_year || null;
 
     const existingBook = await bookModel.findByOpenLibraryWorkKey(cleanWorkKey, connection);

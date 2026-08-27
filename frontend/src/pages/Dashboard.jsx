@@ -13,9 +13,10 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle, Download
 } from 'lucide-react';
 import socket from '../socket';
+import { downloadCSV } from '../utils/exportUtils';
 
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -31,6 +32,16 @@ export default function Dashboard() {
   const [recentBooks, setRecentBooks] = useState([]);
   const [recentJobs, setRecentJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [exportingType, setExportingType] = useState(null);
+  const [message, setMessage] = useState(null);
+  
+  const handleExport = (type, endpoint, filename) => {
+    setExportingType(type);
+    setDownloadMenuOpen(false);
+    downloadCSV(endpoint, filename, () => setExportingType(null), setMessage);
+  };
+
 
   useEffect(() => {
     const fetchDashboardData = async (isBackground = false) => {
@@ -126,10 +137,46 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="page-container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <header className="page-header" style={{ marginBottom: '40px' }}>
-        <h1 className="page-title">Welcome, {user.name || 'Admin'}</h1>
-        <p className="page-subtitle">Library Management Overview</p>
+    <div className="page-container" style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
+      {message && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          backgroundColor: message.type === 'error' ? 'var(--error)' : 'var(--success)',
+          color: 'white', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          display: 'flex', alignItems: 'center', gap: '12px'
+        }}>
+          {message.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
+          <span>{message.text}</span>
+        </div>
+      )}
+      <header className="page-header" style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>Welcome, {user.name || 'Admin'}</h1>
+          <p className="page-subtitle" style={{ marginTop: '4px', marginBottom: 0 }}>Library Management Overview</p>
+        </div>
+        
+        <div style={{ position: 'relative' }}>
+          <button 
+            className="btn-secondary" 
+            onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Download size={16} />
+            {exportingType ? `Exporting ${exportingType}...` : 'Download Reports'}
+          </button>
+          
+          {downloadMenuOpen && (
+            <div className="card" style={{
+              position: 'absolute', top: '100%', right: '0', marginTop: '8px', padding: '8px', minWidth: '180px',
+              display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}>
+              <button className="btn-secondary" style={{ border: 'none', justifyContent: 'flex-start', padding: '8px 12px' }} onClick={() => handleExport('Books', '/api/export/books', 'library_books.csv')}>Books Report</button>
+              <button className="btn-secondary" style={{ border: 'none', justifyContent: 'flex-start', padding: '8px 12px' }} onClick={() => handleExport('Authors', '/api/export/authors', 'library_authors.csv')}>Authors Report</button>
+              <button className="btn-secondary" style={{ border: 'none', justifyContent: 'flex-start', padding: '8px 12px' }} onClick={() => handleExport('Subjects', '/api/export/subjects', 'library_subjects.csv')}>Subjects Report</button>
+              <button className="btn-secondary" style={{ border: 'none', justifyContent: 'flex-start', padding: '8px 12px' }} onClick={() => handleExport('Languages', '/api/export/languages', 'library_languages.csv')}>Languages Report</button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* 1. TOP - Library Statistics */}
