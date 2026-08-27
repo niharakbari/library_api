@@ -21,6 +21,26 @@ export default function TopNavLayout() {
     }
   }, []);
 
+
+  const [showProfileMenu, setShowProfileMenu] = React.useState(false);
+  const menuRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const getInitials = () => {
+    if (!user) return 'A';
+    const name = user.name || user.username || (user.email ? user.email.split('@')[0] : 'Admin');
+    return name.substring(0, 2).toUpperCase();
+  };
+
   const handleLogout = async () => {
     try {
       await axios.post('/auth/logout');
@@ -67,20 +87,38 @@ export default function TopNavLayout() {
           })}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto', borderLeft: '1px solid var(--border)', paddingLeft: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', borderLeft: '1px solid var(--border)', paddingLeft: '16px', position: 'relative' }} ref={menuRef}>
           {user && (
-            <div className="nav-user-profile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dark)', lineHeight: 1.2 }}>
-                {user.name || user.username || (user.email ? user.email.split('@')[0] : 'Admin')}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{user.email}</span>
+            <button 
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              style={{
+                width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: 'none', cursor: 'pointer', padding: 0
+              }}
+            >
+              {getInitials()}
+            </button>
+          )}
+          {showProfileMenu && user && (
+            <div className="card" style={{
+              position: 'absolute', top: '100%', right: '0', marginTop: '12px', padding: '12px 16px', minWidth: '280px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || user.username || 'Admin'}</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
+              </div>
+              <button 
+                onClick={handleLogout} 
+                className="btn-secondary" 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', border: 'none', backgroundColor: '#fff0f0', color: 'var(--error)', padding: '6px 12px', flexShrink: 0 }}
+                title="Logout"
+              >
+                <LogOut size={14} /> Logout
+              </button>
             </div>
           )}
-          <button className="nav-logout" onClick={handleLogout} title="Logout">
-            <LogOut size={16} />
-          </button>
-        </div>
-      </nav>
+        </div></nav>
 
       <main className="main-content">
         <Outlet />

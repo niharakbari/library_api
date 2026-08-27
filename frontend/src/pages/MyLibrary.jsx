@@ -15,6 +15,45 @@ export default function MyLibrary() {
   const [message, setMessage] = useState(null);
   const limit = 20;
 
+
+  // Selection State
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedBooks, setSelectedBooks] = useState(new Set());
+  const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
+
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedBooks(new Set());
+  };
+
+  const handleToggleSelectBook = (id) => {
+    const newSet = new Set(selectedBooks);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedBooks(newSet);
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedBooks);
+    if (!ids.length) return;
+    setIsDeleting(true);
+    try {
+      const response = await axios.delete(`/api/books/delete/${ids[0]}`, {
+        data: { bookIds: ids }
+      });
+      if (response.data.success) {
+        setMessage({ type: 'success', text: 'Selected books deleted successfully.' });
+        setSelectedBooks(new Set());
+        setDeleteSelectedModalOpen(false);
+        fetchCatalog(offset);
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to delete selected books.' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Delete State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [bookToDelete, setBookToDelete] = useState(null);
@@ -67,6 +106,36 @@ export default function MyLibrary() {
       setError('Failed to fetch local catalog.');
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  // Clear Library State
+  const [clearModalOpen, setClearModalOpen] = useState(false);
+  const [clearInput, setClearInput] = useState('');
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearLibrary = async () => {
+    if (clearInput !== 'DELETE') return;
+    setIsClearing(true);
+    try {
+      const response = await axios.delete('/api/books/clear');
+      if (response.data.success) {
+        setResults([]);
+        setTotal(0);
+        setClearModalOpen(false);
+        setClearInput('');
+        setMessage({ type: 'success', text: 'Library cleared successfully.' });
+        setTimeout(() => setMessage(null), 5000);
+      } else {
+        setMessage({ type: 'error', text: response.data.message || 'Failed to clear library.' });
+        setTimeout(() => setMessage(null), 5000);
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to clear library.' });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -208,11 +277,51 @@ export default function MyLibrary() {
 
   return (
     <div className="page-container">
-      <header className="page-header" style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', marginBottom: '24px' }}>
-        <Library size={32} color="var(--primary)" />
-        <div>
-          <h1 className="page-title">My Library</h1>
-          <p className="page-subtitle">View books imported into your local catalog.</p>
+      <header className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+          <Library size={32} color="var(--primary)" />
+          <div>
+            <h1 className="page-title" style={{ marginBottom: 0 }}>My Library</h1>
+            <p className="page-subtitle" style={{ marginTop: '4px', marginBottom: 0 }}>View books imported into your local catalog.</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button 
+            className="btn-secondary" 
+            onClick={handleExport} 
+            disabled={exporting}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            {exporting ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
+            Export
+          </button>
+          
+          <button 
+            className={isSelectMode ? "btn-primary" : "btn-secondary"} 
+            onClick={handleToggleSelectMode}
+          >
+            {isSelectMode ? 'Cancel Selection' : 'Select'}
+          </button>
+          
+          {isSelectMode && selectedBooks.size > 0 && (
+             <button 
+               className="btn-primary" 
+               onClick={() => setDeleteSelectedModalOpen(true)} 
+               style={{ backgroundColor: '#e55a5a', color: '#ffffff', borderColor: '#e55a5a' }}
+             >
+               Delete Selected ({selectedBooks.size})
+             </button>
+          )}
+
+          {isSelectMode && (
+             <button 
+               className="btn-secondary" 
+               onClick={() => setClearModalOpen(true)} 
+               style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
+             >
+               Delete All
+             </button>
+          )}
         </div>
       </header>
 
@@ -306,16 +415,36 @@ export default function MyLibrary() {
               <div 
                 key={work.key} 
                 className="card" 
-                onClick={() => navigate(`/books/${work.key.replace('/works/', '')}`)}
+                onClick={(e) => {
+                  if (isSelectMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggleSelectBook(work.id);
+                  } else {
+                    navigate(`/books/${work.key.replace('/works/', '')}`);
+                  }
+                }}
                 style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
                   padding: '16px', 
                   gap: '16px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)',
-                  cursor: 'pointer'
+                  cursor: isSelectMode ? 'default' : 'pointer',
+                  border: isSelectMode && selectedBooks.has(work.id) ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  position: 'relative'
                 }}
               >
+                {isSelectMode && (
+                  <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 20 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedBooks.has(work.id)}
+                      readOnly
+                      style={{ transform: 'scale(1.5)', pointerEvents: 'none' }}
+                    />
+                  </div>
+                )}
                 <div style={{ position: 'relative', width: '100%', height: '200px', backgroundColor: 'var(--bg)', borderRadius: '8px', overflow: 'hidden' }}>
                   <button 
                     onClick={(e) => { e.stopPropagation(); setBookToDelete(work); setDeleteModalOpen(true); }}
@@ -474,6 +603,53 @@ export default function MyLibrary() {
         onConfirm={handleDeleteBook}
         onCancel={() => setDeleteModalOpen(false)}
       />
+
+      
+      <ConfirmModal 
+        isOpen={deleteSelectedModalOpen}
+        title="Delete Selected Books"
+        message={`Are you sure you want to permanently delete ${selectedBooks.size} selected books?`}
+        confirmText="Delete"
+        confirmVariant="danger"
+        isProcessing={isDeleting}
+        onConfirm={handleDeleteSelected}
+        onCancel={() => setDeleteSelectedModalOpen(false)}
+      />
+
+      {clearModalOpen && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, 
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' 
+        }}>
+          <div className="card" style={{ padding: '32px', width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px', color: 'var(--error)' }}>Clear Library</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              This will permanently delete ALL books, authors, languages, and subject mappings. 
+              <br/><br/>
+              Type <strong>DELETE</strong> below to confirm.
+            </p>
+            <input 
+              type="text" 
+              value={clearInput}
+              onChange={(e) => setClearInput(e.target.value)}
+              placeholder="DELETE"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '24px', outline: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => { setClearModalOpen(false); setClearInput(''); }} disabled={isClearing}>Cancel</button>
+              <button 
+                className="btn-primary" 
+                style={{ backgroundColor: '#e55a5a', color: '#ffffff', borderColor: '#e55a5a' }}
+                onClick={handleClearLibrary} 
+                disabled={isClearing || clearInput !== 'DELETE'}
+              >
+                {isClearing ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : 'Clear All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
