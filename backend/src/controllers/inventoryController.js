@@ -56,7 +56,7 @@ const searchTitle = asyncHandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         data
-    });
+    });p
 });
 
 const searchSubject = asyncHandler(async (req, res) => {

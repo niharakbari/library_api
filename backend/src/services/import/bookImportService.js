@@ -30,7 +30,7 @@ const importBook = async (workKey, languages = [], connection = db) => {
         };
     }
 
-    // Safely extract a valid positive numeric cover ID from work.covers array
+  
     let safeCoverId = null;
     if (Array.isArray(work.covers) && work.covers.length > 0) {
         const firstCover = Number(work.covers[0]);
@@ -39,38 +39,45 @@ const importBook = async (workKey, languages = [], connection = db) => {
         }
     }
 
+        let parsedYear = null;
+    if (work.first_publish_date) {
+        const match = String(work.first_publish_date).match(/\b(1\d{3}|20\d{2})\b/);
+        if (match) {
+            parsedYear = parseInt(match[0], 10);
+        }
+    }
+    parsedYear = parsedYear || work.first_publish_year || null;
+
     const existingBook = await bookModel.findByOpenLibraryWorkKey(cleanWorkKey, connection);
+
+    let finalBookId;
+    let finalStatus;
 
     if (existingBook) {
         await bookModel.update(existingBook.id, {
             title: work.title,
-            firstPublishYear: work.first_publish_year || null,
+            firstPublishYear: parsedYear,
             coverEditionKey: null,
             coverId: safeCoverId,
         }, connection);
 
-        // Continue updating authors, subjects, and languages so they are fresh
-        // The problem is we don't have an atomic upsert, but we can just use the existing book ID.
-        // We shouldn't duplicate the relation rows either, but the assignment says "Existing work key -> update existing book and return status updated".
-        return {
-            status: "updated",
-            bookId: existingBook.id,
-            bookTitle: work.title
-        };
+        finalBookId = existingBook.id;
+        finalStatus = "updated";
+
+        // Clear existing mappings to prevent duplication on upsert
+        await bookAuthorModel.deleteBookAuthor(finalBookId, connection);
+        await bookSubjectsModel.deleteBookSubject(finalBookId, connection);
+        await bookLanguagesModel.deleteBookLanguage(finalBookId, connection);
+    } else {
+        finalBookId = await bookModel.create({
+            workKey: cleanWorkKey,
+            title: work.title,
+            firstPublishYear: parsedYear,
+            coverEditionKey: null,
+            coverId: safeCoverId,
+        }, connection);
+        finalStatus = "imported";
     }
-
-
-
-    // Filling books table    
-    const bookId = await bookModel.create({
-        workKey: cleanWorkKey,
-        title: work.title,
-        firstPublishYear: work.first_publish_year || null,
-        coverEditionKey: null,
-        coverId: safeCoverId,
-    },
-    connection
-    );
 
     
     // search author details...and adding authors one by one
@@ -100,7 +107,7 @@ const importBook = async (workKey, languages = [], connection = db) => {
 
 
         await bookAuthorModel.create(
-            bookId,
+            finalBookId,
             authorId,
             connection
         );
@@ -127,7 +134,7 @@ const importBook = async (workKey, languages = [], connection = db) => {
             subjectId = await subjectModel.create(normalizedSubject, connection);
         }
 
-        await bookSubjectsModel.create(bookId, subjectId, connection);
+        await bookSubjectsModel.create(finalBookId, subjectId, connection);
     };
     
 
@@ -156,15 +163,15 @@ const importBook = async (workKey, languages = [], connection = db) => {
         }
 
         await bookLanguagesModel.create(
-            bookId,
+            finalBookId,
             languageId,
             connection
         );
     }
 
     return {
-        status: "imported",
-        bookId,
+        status: finalStatus,
+        bookId: finalBookId,
         bookTitle: work.title
     };
 };

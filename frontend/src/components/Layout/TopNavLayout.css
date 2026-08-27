@@ -147,3 +147,9 @@
     height: 30px;
   }
 }
+
+@media (max-width: 768px) {
+  .nav-user-profile {
+    display: none !important;
+  }
+}

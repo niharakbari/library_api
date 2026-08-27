@@ -8,6 +8,19 @@ export default function TopNavLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [user, setUser] = React.useState(null);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        setUser(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error parsing user from localStorage', e);
+    }
+  }, []);
+
   const handleLogout = async () => {
     try {
       await axios.post('/auth/logout');
@@ -54,9 +67,19 @@ export default function TopNavLayout() {
           })}
         </div>
 
-        <button className="nav-logout" onClick={handleLogout} title="Logout">
-          <LogOut size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto', borderLeft: '1px solid var(--border)', paddingLeft: '16px' }}>
+          {user && (
+            <div className="nav-user-profile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dark)', lineHeight: 1.2 }}>
+                {user.name || user.username || (user.email ? user.email.split('@')[0] : 'Admin')}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{user.email}</span>
+            </div>
+          )}
+          <button className="nav-logout" onClick={handleLogout} title="Logout">
+            <LogOut size={16} />
+          </button>
+        </div>
       </nav>
 
       <main className="main-content">

@@ -1,7 +1,8 @@
 const exportModel = require('../models/exportModel');
 
 
-const escapeCSV = (value) => {
+
+const escapeCSV = (value) => {                          
 
     if (value === null || value === undefined) {
         return '';
@@ -15,7 +16,7 @@ const escapeCSV = (value) => {
         stringValue.includes('\n') ||
         stringValue.includes('\r')
     ) {
-        return `"${stringValue.replace(/"/g, '""')}"`;
+        return `"${stringValue.replace(/"/g, '""')}"`;   // we replaced every " with "" coz csv doent allow " Harrt the "magecian" "..it accepts "Harry the ""magician"
     }
 
     return stringValue;
@@ -31,7 +32,7 @@ const rowsToCSV = (rows) => {
     const headers = Object.keys(rows[0]);
 
     const csvRows = [
-        headers.map(escapeCSV).join(',')
+        headers.map(escapeCSV).join(',')       
     ];
 
     for (const row of rows) {

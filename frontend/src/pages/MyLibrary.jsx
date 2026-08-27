@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Library, Loader2, ChevronLeft, ChevronRight, Edit2, Check, X, Star, Trash2 } from 'lucide-react';
+import { Library, Loader2, Download, ChevronLeft, ChevronRight, Edit2, Check, X, Star, Trash2 } from 'lucide-react';
 import ConfirmModal from '../components/UI/ConfirmModal';
 
 export default function MyLibrary() {
@@ -37,6 +37,11 @@ export default function MyLibrary() {
     year: ''
   });
   const [sort, setSort] = useState('recently_added');
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = () => {
+    downloadCSV('/api/export/books', 'library_books.csv', setExporting, setMessage);
+  };
 
   const fetchCatalog = async (currentOffset = 0) => {
     setLoading(true);
